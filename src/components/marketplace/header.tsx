@@ -72,7 +72,7 @@ export function Header({
     const init = async () => {
       // Cargar categorías jerárquicas
       try {
-        const response = await fetch('/api/categories?hierarchical=true')
+        const response = await fetch('/api/categories?format=tree')
         if (response.ok) {
           const data = await response.json()
           setCategories(data.categories || [])
@@ -106,6 +106,15 @@ export function Header({
     e.preventDefault()
     if (searchQuery.trim()) {
       router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+      window.location.href = '/'
+    } catch (error) {
+      console.error('Error logging out:', error)
     }
   }
 
@@ -268,7 +277,7 @@ export function Header({
                     </>
                   )}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Cerrar sesión</span>
                   </DropdownMenuItem>
@@ -315,41 +324,43 @@ export function Header({
       </div>
 
       {/* Menú móvil */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden border-t border-gray-200 bg-white">
-          <div className="container mx-auto px-4 py-4 space-y-3">
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-700 mb-2">Categorías</p>
-              {categories.slice(0, 5).map((category) => (
-                <Link key={category.id} href={`/categoria/${category.name.toLowerCase().replace(/\s+/g, '-')}`} className="block py-2 text-gray-700 hover:text-blue-600">
-                  {category.icon && <span className="mr-2">{category.icon}</span>}
-                  {category.name}
-                </Link>
-              ))}
+      {
+        isMobileMenuOpen && (
+          <div className="lg:hidden border-t border-gray-200 bg-white">
+            <div className="container mx-auto px-4 py-4 space-y-3">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-700 mb-2">Categorías</p>
+                {categories.slice(0, 5).map((category) => (
+                  <Link key={category.id} href={`/categoria/${category.name.toLowerCase().replace(/\s+/g, '-')}`} className="block py-2 text-gray-700 hover:text-blue-600">
+                    {category.icon && <span className="mr-2">{category.icon}</span>}
+                    {category.name}
+                  </Link>
+                ))}
+              </div>
+              <Link href="/subastas" className="block py-2 text-gray-700 hover:text-blue-600">
+                Subastas
+              </Link>
+              <Link href="/social" className="block py-2 text-gray-700 hover:text-blue-600">
+                <Users className="inline h-4 w-4 mr-2" />
+                Social
+              </Link>
+              <Link href="/vender" className="block py-2 text-gray-700 hover:text-blue-600">
+                Vender
+              </Link>
+              {!currentUser && (
+                <>
+                  <Link href="/login" className="block py-2 text-gray-700 hover:text-blue-600">
+                    Iniciar sesión
+                  </Link>
+                  <Link href="/register" className="block py-2 text-gray-700 hover:text-blue-600">
+                    Registrarse
+                  </Link>
+                </>
+              )}
             </div>
-            <Link href="/subastas" className="block py-2 text-gray-700 hover:text-blue-600">
-              Subastas
-            </Link>
-            <Link href="/social" className="block py-2 text-gray-700 hover:text-blue-600">
-              <Users className="inline h-4 w-4 mr-2" />
-              Social
-            </Link>
-            <Link href="/vender" className="block py-2 text-gray-700 hover:text-blue-600">
-              Vender
-            </Link>
-            {!currentUser && (
-              <>
-                <Link href="/login" className="block py-2 text-gray-700 hover:text-blue-600">
-                  Iniciar sesión
-                </Link>
-                <Link href="/register" className="block py-2 text-gray-700 hover:text-blue-600">
-                  Registrarse
-                </Link>
-              </>
-            )}
           </div>
-        </div>
-      )}
-    </header>
+        )
+      }
+    </header >
   )
 }

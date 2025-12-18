@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 
 export async function POST() {
@@ -17,7 +17,7 @@ export async function POST() {
     ]
 
     for (const cat of categorias) {
-      await db.category.upsert({
+      await prisma.category.upsert({
         where: { name: cat.name },
         update: cat,
         create: cat
@@ -27,7 +27,7 @@ export async function POST() {
     // Crear usuarios de ejemplo
     const hashedPassword = await bcrypt.hash('password123', 12)
 
-    const vendedor1 = await db.user.upsert({
+    const vendedor1 = await prisma.user.upsert({
       where: { email: 'juan@ejemplo.com' },
       update: {},
       create: {
@@ -41,7 +41,7 @@ export async function POST() {
       }
     })
 
-    const vendedor2 = await db.user.upsert({
+    const vendedor2 = await prisma.user.upsert({
       where: { email: 'maria@ejemplo.com' },
       update: {},
       create: {
@@ -56,9 +56,9 @@ export async function POST() {
     })
 
     // Obtener categorías creadas
-    const electronica = await db.category.findUnique({ where: { name: 'Electrónica' } })
-    const ropa = await db.category.findUnique({ where: { name: 'Ropa y Accesorios' } })
-    const hogar = await db.category.findUnique({ where: { name: 'Hogar y Jardín' } })
+    const electronica = await prisma.category.findUnique({ where: { name: 'Electrónica' } })
+    const ropa = await prisma.category.findUnique({ where: { name: 'Ropa y Accesorios' } })
+    const hogar = await prisma.category.findUnique({ where: { name: 'Hogar y Jardín' } })
 
     if (electronica && ropa && hogar) {
       // Crear productos de ejemplo
@@ -124,7 +124,7 @@ export async function POST() {
       ]
 
       for (const prod of productos) {
-        await db.product.upsert({
+        await prisma.product.upsert({
           where: { slug: prod.slug },
           update: prod,
           create: prod

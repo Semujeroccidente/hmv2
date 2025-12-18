@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const validatedData = registerSchema.parse(body)
 
     // Verificar si el usuario ya existe
-    const existingUser = await db.user.findUnique({
+    const existingUser = await prisma.user.findUnique({
       where: { email: validatedData.email }
     })
 
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(validatedData.password, 12)
 
     // Crear usuario
-    const user = await db.user.create({
+    const user = await prisma.user.create({
       data: {
         name: validatedData.name,
         email: validatedData.email,

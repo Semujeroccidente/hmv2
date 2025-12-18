@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { requireAuth, handleAuthError } from '@/lib/auth-middleware'
 
 const addToCartSchema = z.object({
   productId: z.string().min(1, 'El ID del producto es requerido'),
@@ -10,9 +11,9 @@ const addToCartSchema = z.object({
 // GET - Obtener carrito
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Obtener usuario real
-    const user = await prisma.user.findFirst()
-    const userId = user?.id || 'demo-user'
+    // Verificar autenticación
+    const user = await requireAuth(request)
+    const userId = user.userId
 
     let cart = await prisma.cart.findFirst({
       where: { userId, status: 'ACTIVE' },
@@ -31,25 +32,19 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    if (!cart && user) {
+    if (!cart) {
       cart = await prisma.cart.create({
         data: { userId, status: 'ACTIVE' },
         include: { items: { include: { product: { include: { seller: { select: { id: true, name: true, rating: true } } } } } } }
       })
     }
 
-    // Transformar datos para compatibilidad con el frontend si es necesario
-    // Pero el frontend usa lo que devolvemos aqui.
-    // Necesitamos calcular totales si no están actualizados en DB (normalmente se hace al modificar)
-
-    // Simplificación: Devolver cart tal cual, asumiendo que el frontend maneja la estructura
-
     return NextResponse.json({ cart })
-  } catch (error) {
-    console.error('Error obteniendo carrito:', error)
+  } catch (error: any) {
+    const authError = handleAuthError(error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
+      { error: authError.error },
+      { status: authError.status }
     )
   }
 }
@@ -60,13 +55,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = addToCartSchema.parse(body)
 
-    // TODO: Obtener usuario real
-    const user = await prisma.user.findFirst()
-    const userId = user?.id
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
-    }
+    // Verificar autenticación
+    const user = await requireAuth(request)
+    const userId = user.userId
 
     // Asegurar carrito activo
     let cart = await prisma.cart.findFirst({
@@ -121,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     const updatedCart = await prisma.cart.update({
       where: { id: cart.id },
-      data: { total }, // Nota: Schema tiene solo 'total', podríamos agregar subtotal/tax si quisiéramos persistir eso
+      data: { total },
       include: {
         items: {
           include: {
@@ -151,8 +142,12 @@ export async function POST(request: NextRequest) {
       cart: responseCart
     }, { status: 201 })
 
-  } catch (error) {
-    console.error('Error cart:', error)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Datos inválidos', details: error.issues }, { status: 400 })
+    }
+
+    const authError = handleAuthError(error)
+    return NextResponse.json({ error: authError.error }, { status: authError.status })
   }
 }

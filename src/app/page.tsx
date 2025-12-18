@@ -5,7 +5,6 @@ import { CategoryGrid } from '@/components/marketplace/category-menu'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { MOCK_PRODUCTS, MOCK_CATEGORIES } from '@/lib/mock-data'
 import {
   Star,
   TrendingUp,
@@ -16,6 +15,7 @@ import {
   Shield,
   Gavel
 } from 'lucide-react'
+import { prisma } from '@/lib/prisma'
 
 // Mock Data for Auctions (since it wasn't in mock-data.ts)
 const SAMPLE_AUCTIONS: Auction[] = [
@@ -59,10 +59,55 @@ const SAMPLE_AUCTIONS: Auction[] = [
   }
 ]
 
-export default function Home() {
+export default async function Home() {
   // Server Component Logic - Data Fetching
-  const products = MOCK_PRODUCTS.slice(0, 4) // Get top 4 products
-  const categoriesList = MOCK_CATEGORIES
+  const [productsData, categoriesList] = await Promise.all([
+    prisma.product.findMany({
+      where: { status: 'ACTIVE' },
+      orderBy: { createdAt: 'desc' },
+      take: 8,
+      include: {
+        seller: {
+          select: {
+            name: true,
+            rating: true
+          }
+        },
+        category: {
+          select: {
+            name: true
+          }
+        }
+      }
+    }),
+    prisma.category.findMany({
+      where: { parentId: null },
+      include: {
+        children: {
+          take: 5,
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        _count: {
+          select: { products: true }
+        }
+      },
+      take: 8
+    })
+  ])
+
+  // Map Prisma products to ProductCard interface if needed
+  const products = productsData.map(p => ({
+    ...p,
+    originalPrice: p.originalPrice || undefined,
+    images: p.images || undefined,
+    thumbnail: p.thumbnail || undefined,
+    createdAt: p.createdAt.toISOString(),
+    category: p.category.name // ProductCard expects string or {name: string}, keeping simple
+  }))
+
   const auctions = SAMPLE_AUCTIONS
 
   return (

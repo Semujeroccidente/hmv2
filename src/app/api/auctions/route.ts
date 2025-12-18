@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
 const createAuctionSchema = z.object({
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [auctions, total] = await Promise.all([
-      db.auction.findMany({
+      prisma.auction.findMany({
         where,
         include: {
           product: {
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit
       }),
-      db.auction.count({ where })
+      prisma.auction.count({ where })
     ])
 
     return NextResponse.json({
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
     const userId = 'user-id-temporal' // Usuario temporal para desarrollo
 
     // Verificar que el producto existe y está disponible
-    const product = await db.product.findUnique({
+    const product = await prisma.product.findUnique({
       where: { id: validatedData.productId }
     })
 
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
     const endDate = new Date()
     endDate.setDate(endDate.getDate() + validatedData.duration)
 
-    const auction = await db.auction.create({
+    const auction = await prisma.auction.create({
       data: {
         productId: validatedData.productId,
         startingPrice: validatedData.startingPrice,

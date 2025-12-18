@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 // GET - Obtener una categoría específica
 export async function GET(
@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const category = await db.category.findUnique({
+    const category = await prisma.category.findUnique({
       where: { id: params.id },
       include: {
         parent: {
@@ -62,7 +62,7 @@ export async function PUT(
     const { name, description, icon, parentId } = await request.json()
 
     // Validar que no exista otra categoría con el mismo nombre (excepto la actual)
-    const existingCategory = await db.category.findFirst({
+    const existingCategory = await prisma.category.findFirst({
       where: {
         name: name.toLowerCase(),
         id: { not: params.id }
@@ -76,7 +76,7 @@ export async function PUT(
       )
     }
 
-    const updatedCategory = await db.category.update({
+    const updatedCategory = await prisma.category.update({
       where: { id: params.id },
       data: {
         name,
@@ -123,7 +123,7 @@ export async function PATCH(
 
     // Si se actualiza el nombre, verificar que no exista otra categoría con el mismo nombre
     if (updates.name) {
-      const existingCategory = await db.category.findFirst({
+      const existingCategory = await prisma.category.findFirst({
         where: {
           name: updates.name.toLowerCase(),
           id: { not: params.id }
@@ -138,7 +138,7 @@ export async function PATCH(
       }
     }
 
-    const updatedCategory = await db.category.update({
+    const updatedCategory = await prisma.category.update({
       where: { id: params.id },
       data: {
         ...updates,
@@ -180,7 +180,7 @@ export async function DELETE(
 ) {
   try {
     // Verificar si hay productos asociados
-    const categoryWithProducts = await db.category.findUnique({
+    const categoryWithProducts = await prisma.category.findUnique({
       where: { id: params.id },
       include: {
         _count: {
@@ -206,7 +206,7 @@ export async function DELETE(
     }
 
     // Verificar si hay subcategorías
-    const subcategoriesCount = await db.category.count({
+    const subcategoriesCount = await prisma.category.count({
       where: { parentId: params.id }
     })
 
@@ -217,7 +217,7 @@ export async function DELETE(
       )
     }
 
-    await db.category.delete({
+    await prisma.category.delete({
       where: { id: params.id }
     })
 

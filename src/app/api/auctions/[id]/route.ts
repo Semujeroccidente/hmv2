@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 // MOCK DATA para coincidir con el Homepage
 const MOCK_AUCTIONS: Record<string, any> = {
@@ -60,7 +60,7 @@ export async function GET(
     }
 
     // Si no es mock, buscar en DB
-    const auction = await db.auction.findUnique({
+    const auction = await prisma.auction.findUnique({
       where: { id },
       include: {
         product: {
