@@ -10,12 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Edit, 
-  Trash2, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Edit,
+  Trash2,
   Eye,
   ChevronDown,
   ChevronRight,
@@ -50,9 +50,9 @@ interface CategoryManagementProps {
   onCategoryDelete: (categoryId: string) => void
 }
 
-export function CategoryManagement({ 
-  categories, 
-  onCategoryUpdate, 
+export function CategoryManagement({
+  categories,
+  onCategoryUpdate,
   onCategoryCreate,
   onCategoryDelete
 }: CategoryManagementProps) {
@@ -99,9 +99,9 @@ export function CategoryManagement({
 
   const filteredCategories = hierarchicalCategories.filter(category => {
     const matchesSearch = category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
     const matchesParent = !parentFilter || category.parentId === parentFilter
-    
+
     return matchesSearch && matchesParent
   })
 
@@ -159,11 +159,11 @@ export function CategoryManagement({
                   <Tag className="h-4 w-4 text-gray-400" />
                 )}
               </Button>
-              
+
               {category.icon && (
                 <span className="text-lg">{category.icon}</span>
               )}
-              
+
               <div>
                 <div className="font-medium">{category.name}</div>
                 {category.description && (
@@ -172,7 +172,7 @@ export function CategoryManagement({
               </div>
             </div>
           </TableCell>
-          
+
           <TableCell>
             {category.parent ? (
               <Badge variant="outline">{category.parent.name}</Badge>
@@ -180,14 +180,14 @@ export function CategoryManagement({
               <Badge variant="secondary">Principal</Badge>
             )}
           </TableCell>
-          
+
           <TableCell>
             <div className="flex items-center space-x-2">
               <span>{category._count?.products || 0}</span>
               <span className="text-sm text-gray-500">productos</span>
             </div>
           </TableCell>
-          
+
           <TableCell>
             <div className="flex items-center space-x-2">
               <Button
@@ -200,7 +200,7 @@ export function CategoryManagement({
               >
                 <Eye className="h-4 w-4" />
               </Button>
-              
+
               <Button
                 variant="outline"
                 size="sm"
@@ -217,7 +217,7 @@ export function CategoryManagement({
               >
                 <Edit className="h-4 w-4" />
               </Button>
-              
+
               <Button
                 variant="outline"
                 size="sm"
@@ -229,7 +229,7 @@ export function CategoryManagement({
             </div>
           </TableCell>
         </TableRow>
-        
+
         {/* Render children if expanded */}
         {hasChildren && isExpanded && category.children?.map(child => renderCategoryRow(child, level + 1))}
       </div>
@@ -250,14 +250,14 @@ export function CategoryManagement({
               className="pl-10 w-full sm:w-64"
             />
           </div>
-          
-          <Select value={parentFilter} onValueChange={setParentFilter}>
+
+          <Select value={parentFilter || 'ALL'} onValueChange={(value) => setParentFilter(value === 'ALL' || value === 'ROOT' ? '' : value)}>
             <SelectTrigger className="w-full sm:w-48">
               <SelectValue placeholder="Filtrar por padre" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todas las categorías</SelectItem>
-              <SelectItem value="">Solo categorías principales</SelectItem>
+              <SelectItem value="ALL">Todas las categorías</SelectItem>
+              <SelectItem value="ROOT">Solo categorías principales</SelectItem>
               {categories
                 .filter(cat => !cat.parentId)
                 .map(parent => (
@@ -315,7 +315,7 @@ export function CategoryManagement({
                 placeholder="Nombre de la categoría"
               />
             </div>
-            
+
             <div>
               <Label htmlFor="description">Descripción</Label>
               <Textarea
@@ -326,7 +326,7 @@ export function CategoryManagement({
                 rows={3}
               />
             </div>
-            
+
             <div>
               <Label htmlFor="icon">Icono (Emoji)</Label>
               <Input
@@ -337,15 +337,15 @@ export function CategoryManagement({
                 maxLength={2}
               />
             </div>
-            
+
             <div>
               <Label htmlFor="parent">Categoría Padre</Label>
-              <Select value={newCategory.parentId} onValueChange={(value) => setNewCategory({ ...newCategory, parentId: value })}>
+              <Select value={newCategory.parentId || 'NONE'} onValueChange={(value) => setNewCategory({ ...newCategory, parentId: value === 'NONE' ? '' : value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar categoría padre (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Ninguna (categoría principal)</SelectItem>
+                  <SelectItem value="NONE">Ninguna (categoría principal)</SelectItem>
                   {categories
                     .filter(cat => !cat.parentId)
                     .map(parent => (
@@ -356,7 +356,7 @@ export function CategoryManagement({
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="flex justify-end space-x-2 pt-4">
               <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
                 Cancelar

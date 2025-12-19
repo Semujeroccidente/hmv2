@@ -215,37 +215,67 @@ export default function VenderPage() {
                                         )}
                                     </div>
 
-                                    <div className="flex gap-2">
-                                        <FormField
-                                            control={form.control}
-                                            name="imageUrl"
-                                            render={({ field }) => (
-                                                <FormItem className="flex-1">
-                                                    <FormControl>
-                                                        <Input
-                                                            placeholder="https://ejemplo.com/imagen.jpg"
-                                                            {...field}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') {
-                                                                    e.preventDefault()
-                                                                    handleAddImage()
-                                                                }
-                                                            }}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <Button
-                                            type="button"
-                                            onClick={handleAddImage}
-                                            variant="secondary"
-                                            disabled={!form.watch('imageUrl') || images.length >= MAX_IMAGES}
-                                        >
-                                            <Plus className="h-4 w-4 mr-1" />
-                                            {images.length >= MAX_IMAGES ? 'Límite' : 'Agregar'}
-                                        </Button>
+                                    <div className="space-y-3">
+                                        {/* Opción 1: Subir archivo local */}
+                                        <div className="flex gap-2">
+                                            <Input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0]
+                                                    if (file) {
+                                                        const reader = new FileReader()
+                                                        reader.onloadend = () => {
+                                                            const base64 = reader.result as string
+                                                            if (images.length < MAX_IMAGES) {
+                                                                setImages([...images, base64])
+                                                                toast.success('Imagen agregada')
+                                                                e.target.value = '' // Reset input
+                                                            } else {
+                                                                toast.error(`Máximo ${MAX_IMAGES} imágenes`)
+                                                            }
+                                                        }
+                                                        reader.readAsDataURL(file)
+                                                    }
+                                                }}
+                                                className="flex-1"
+                                                disabled={images.length >= MAX_IMAGES}
+                                            />
+                                        </div>
+
+                                        {/* Opción 2: URL de imagen */}
+                                        <div className="flex gap-2">
+                                            <FormField
+                                                control={form.control}
+                                                name="imageUrl"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-1">
+                                                        <FormControl>
+                                                            <Input
+                                                                placeholder="O pega una URL: https://ejemplo.com/imagen.jpg"
+                                                                {...field}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.preventDefault()
+                                                                        handleAddImage()
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <Button
+                                                type="button"
+                                                onClick={handleAddImage}
+                                                variant="secondary"
+                                                disabled={!form.watch('imageUrl') || images.length >= MAX_IMAGES}
+                                            >
+                                                <Plus className="h-4 w-4 mr-1" />
+                                                {images.length >= MAX_IMAGES ? 'Límite' : 'Agregar'}
+                                            </Button>
+                                        </div>
                                     </div>
 
                                     <FormDescription>
@@ -348,8 +378,11 @@ export default function VenderPage() {
                                                         step="0.01"
                                                         min="0"
                                                         placeholder="0.00"
-                                                        {...field}
-                                                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                                        value={field.value || ''}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value
+                                                            field.onChange(value === '' ? 0 : parseFloat(value))
+                                                        }}
                                                     />
                                                 </FormControl>
                                                 <FormMessage />
@@ -411,9 +444,16 @@ export default function VenderPage() {
                                             <FormLabel>Categoría principal *</FormLabel>
                                             <FormControl>
                                                 <CategorySelector
-                                                    value={field.value}
-                                                    onChange={field.onChange}
-                                                    excludeIds={form.watch('otherCategoryIds') || []}
+                                                    maxSelection={1}
+                                                    onSelect={(categories) => {
+                                                        if (categories.length >
+                                                            0) {
+                                                            field.onChange(categories[0].id)
+                                                        } else {
+                                                            field.onChange('')
+                                                        }
+                                                    }}
+                                                    selectedIds={field.value ? [field.value] : []}
                                                 />
                                             </FormControl>
                                             <FormDescription>
@@ -432,16 +472,11 @@ export default function VenderPage() {
                                             <FormLabel>Categorías adicionales (opcional)</FormLabel>
                                             <FormControl>
                                                 <CategorySelector
-                                                    value={field.value?.[0] || ''}
-                                                    onChange={(value) => {
-                                                        if (value) {
-                                                            field.onChange([value])
-                                                        } else {
-                                                            field.onChange([])
-                                                        }
+                                                    maxSelection={2}
+                                                    onSelect={(categories) => {
+                                                        field.onChange(categories.map(c => c.id))
                                                     }}
-                                                    excludeIds={form.watch('categoryId') ? [form.watch('categoryId')] : []}
-                                                    placeholder="Selecciona una categoría adicional"
+                                                    selectedIds={field.value || []}
                                                 />
                                             </FormControl>
                                             <FormDescription>

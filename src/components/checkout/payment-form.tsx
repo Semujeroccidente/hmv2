@@ -7,10 +7,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { 
-  CreditCard, 
-  Smartphone, 
-  DollarSign, 
+import {
+  CreditCard,
+  Smartphone,
+  DollarSign,
   Shield,
   Check,
   AlertTriangle
@@ -99,7 +99,11 @@ export function PaymentForm({ paymentMethod, onChange, onValidationComplete }: P
         <RadioGroup value={paymentMethod} onValueChange={handlePaymentMethodChange}>
           <div className="space-y-3">
             {paymentMethods.map((method) => (
-              <div key={method.value} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <label
+                key={method.value}
+                htmlFor={method.value}
+                className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+              >
                 <RadioGroupItem value={method.value} id={method.value} />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
@@ -110,7 +114,7 @@ export function PaymentForm({ paymentMethod, onChange, onValidationComplete }: P
                     </div>
                   </div>
                 </div>
-              </div>
+              </label>
             ))}
           </div>
         </RadioGroup>
@@ -121,7 +125,7 @@ export function PaymentForm({ paymentMethod, onChange, onValidationComplete }: P
         {paymentMethod === 'CARD' && (
           <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
             <h3 className="font-medium mb-4">Información de la Tarjeta</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Número de Tarjeta</label>
@@ -179,7 +183,7 @@ export function PaymentForm({ paymentMethod, onChange, onValidationComplete }: P
         {paymentMethod === 'TRANSFER' && (
           <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
             <h3 className="font-medium mb-4">Información de Transferencia</h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium">Número de Teléfono</label>
@@ -214,7 +218,7 @@ export function PaymentForm({ paymentMethod, onChange, onValidationComplete }: P
             </div>
             <h3 className="font-medium mb-2">Serás redirigido a PayPal</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Completa tu compra de forma segura con tu cuenta PayPal. 
+              Completa tu compra de forma segura con tu cuenta PayPal.
               Podrás usar tu saldo o tarjeta guardada.
             </p>
             <Button className="w-full bg-blue-600 text-white hover:bg-blue-700">
@@ -247,7 +251,7 @@ export function PaymentForm({ paymentMethod, onChange, onValidationComplete }: P
         <Alert>
           <Shield className="h-4 w-4" />
           <AlertDescription>
-            <strong>Pago 100% Seguro:</strong> Tu información está protegida con encriptación SSL. 
+            <strong>Pago 100% Seguro:</strong> Tu información está protegida con encriptación SSL.
             No almacenamos tus datos de tarjeta.
           </AlertDescription>
         </Alert>

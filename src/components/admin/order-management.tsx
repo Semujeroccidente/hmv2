@@ -9,11 +9,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { 
-  Search, 
-  Filter, 
-  Eye, 
-  CheckCircle, 
+import {
+  Search,
+  Filter,
+  Eye,
+  CheckCircle,
   XCircle,
   MoreHorizontal,
   FileText,
@@ -67,10 +67,10 @@ interface OrderManagementProps {
   onOrderCreate: (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'updatedAt'>) => void
 }
 
-export function OrderManagement({ 
-  orders, 
-  onOrderUpdate, 
-  onOrderCreate 
+export function OrderManagement({
+  orders,
+  onOrderUpdate,
+  onOrderCreate
 }: OrderManagementProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -79,10 +79,10 @@ export function OrderManagement({
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.buyerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.buyerEmail.toLowerCase().includes(searchTerm.toLowerCase())
+      order.buyerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.buyerEmail.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = !statusFilter || order.status === statusFilter
-    
+
     return matchesSearch && matchesStatus
   })
 
@@ -96,7 +96,7 @@ export function OrderManagement({
       CANCELLED: 'bg-red-100 text-red-800',
       REFUNDED: 'bg-gray-100 text-gray-800'
     }
-    
+
     return (
       <Badge className={variants[status] || 'bg-gray-100 text-gray-800'}>
         {status}
@@ -173,13 +173,13 @@ export function OrderManagement({
               className="pl-10 w-full sm:w-64"
             />
           </div>
-          
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+
+          <Select value={statusFilter || 'ALL'} onValueChange={(value) => setStatusFilter(value === 'ALL' ? '' : value)}>
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos los estados</SelectItem>
+              <SelectItem value="ALL">Todos los estados</SelectItem>
               <SelectItem value="PENDING">Pendiente</SelectItem>
               <SelectItem value="CONFIRMED">Confirmado</SelectItem>
               <SelectItem value="PROCESSING">Procesando</SelectItem>
@@ -196,7 +196,7 @@ export function OrderManagement({
             <Filter className="h-4 w-4 mr-2" />
             Filtros
           </Button>
-          
+
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Exportar
@@ -288,7 +288,7 @@ export function OrderManagement({
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      
+
                       <Select
                         value={order.status}
                         onValueChange={(status) => handleUpdateOrderStatus(order.id, status)}
@@ -336,7 +336,7 @@ export function OrderManagement({
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="text-right">
                   <div className="text-2xl font-bold text-green-600">
                     {formatCurrency(selectedOrder.total)}
@@ -369,11 +369,15 @@ export function OrderManagement({
                     <CardTitle className="text-sm">Dirección de Envío</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    <div className="text-sm">
-                      <div className="font-medium">{selectedOrder.shippingAddress.street}</div>
-                      <div>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state}</div>
-                      <div>{selectedOrder.shippingAddress.zipCode}, {selectedOrder.shippingAddress.country}</div>
-                    </div>
+                    {selectedOrder.shippingAddress ? (
+                      <div className="text-sm">
+                        <div className="font-medium">{selectedOrder.shippingAddress.street}</div>
+                        <div>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state}</div>
+                        <div>{selectedOrder.shippingAddress.zipCode}, {selectedOrder.shippingAddress.country}</div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500">No hay dirección de envío</div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -455,7 +459,7 @@ export function OrderManagement({
                 <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
                   Cerrar
                 </Button>
-                
+
                 <Select
                   value={selectedOrder.status}
                   onValueChange={(status) => {

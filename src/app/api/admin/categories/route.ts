@@ -20,9 +20,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Generate slug from name
+    const slug = name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove accents
+      .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
+      .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+
     const category = await prisma.category.create({
       data: {
         name,
+        slug,
         description,
         icon,
         parentId: parentId || null

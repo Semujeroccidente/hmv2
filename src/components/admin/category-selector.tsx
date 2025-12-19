@@ -57,8 +57,10 @@ export function CategorySelector({ onSelect, maxSelection = 3, selectedIds = [] 
                 const res = await fetch('/api/categories')
                 if (res.ok) {
                     const data = await res.json()
-                    setAllCategories(data)
-                    setResults(data) // Initial results
+                    // API returns { categories: [...] }
+                    const cats = data.categories || data || []
+                    setAllCategories(cats)
+                    setResults(cats) // Initial results
                 }
             } catch (e) {
                 console.error("Failed to load categories", e)

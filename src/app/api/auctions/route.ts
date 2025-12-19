@@ -129,58 +129,91 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const validatedData = createAuctionSchema.parse(body)
 
-    // TODO: Obtener userId del token JWT
-    const userId = 'user-id-temporal' // Usuario temporal para desarrollo
-
-    // Verificar que el producto existe y está disponible
-    const product = await prisma.product.findUnique({
-      where: { id: validatedData.productId }
+    // Schema for creating auction with product
+    const auctionSchema = z.object({
+      title: z.string().min(5),
+      description: z.string().min(20),
+      categoryId: z.string(),
+      condition: z.enum(['NEW', 'USED', 'REFURBISHED']),
+      startingPrice: z.number().positive(),
+      reservePrice: z.number().positive().optional().nullable(),
+      bidIncrement: z.number().positive(),
+      endDate: z.string(),
+      images: z.array(z.string()).optional()
     })
 
-    if (!product) {
-      return NextResponse.json(
-        { error: 'Producto no encontrado' },
-        { status: 404 }
-      )
-    }
+    const validatedData = auctionSchema.parse(body)
 
-    if (product.status !== 'ACTIVE') {
-      return NextResponse.json(
-        { error: 'El producto no está disponible para subasta' },
-        { status: 400 }
-      )
-    }
+    // Get user from auth or use first user as fallback
+    let userId = request.headers.get('x-user-id')
 
-    // Crear la subasta
-    const endDate = new Date()
-    endDate.setDate(endDate.getDate() + validatedData.duration)
-
-    const auction = await prisma.auction.create({
-      data: {
-        productId: validatedData.productId,
-        startingPrice: validatedData.startingPrice,
-        currentPrice: validatedData.startingPrice,
-        reservePrice: validatedData.reservePrice,
-        endDate,
-        status: 'ACTIVE'
+    if (!userId) {
+      const firstUser = await prisma.user.findFirst({ where: { status: 'ACTIVE' } })
+      if (!firstUser) {
+        return NextResponse.json({ error: 'No hay usuarios disponibles' }, { status: 400 })
       }
+      userId = firstUser.id
+    }
+
+    // Create product and auction in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Generate slug from title
+      const slug = validatedData.title
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remove accents
+        .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
+        .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+
+      // Create the product first
+      const product = await tx.product.create({
+        data: {
+          title: validatedData.title,
+          slug,
+          description: validatedData.description,
+          price: validatedData.startingPrice, // Set initial price
+          categoryId: validatedData.categoryId,
+          condition: validatedData.condition,
+          status: 'ACTIVE',
+          sellerId: userId,
+          images: validatedData.images ? JSON.stringify(validatedData.images) : null,
+          thumbnail: validatedData.images?.[0] || null,
+          stock: 1 // Auction items are unique
+        }
+      })
+
+      // Create the auction
+      const auction = await tx.auction.create({
+        data: {
+          productId: product.id,
+          startingPrice: validatedData.startingPrice,
+          currentPrice: validatedData.startingPrice,
+          reservePrice: validatedData.reservePrice,
+          endDate: new Date(validatedData.endDate),
+          status: 'ACTIVE'
+        },
+        include: {
+          product: {
+            include: {
+              seller: {
+                select: {
+                  id: true,
+                  name: true,
+                  rating: true
+                }
+              }
+            }
+          }
+        }
+      })
+
+      return auction
     })
 
     return NextResponse.json({
       message: 'Subasta creada exitosamente',
-      auction: {
-        id: auction.id,
-        productId: auction.productId,
-        startingPrice: auction.startingPrice,
-        currentPrice: auction.currentPrice,
-        reservePrice: auction.reservePrice,
-        endDate: auction.endDate,
-        status: auction.status,
-        bidCount: 0,
-        createdAt: auction.createdAt
-      }
+      auction: result
     }, { status: 201 })
 
   } catch (error) {

@@ -120,19 +120,95 @@ export async function POST(
   try {
     const { id } = await params
     const body = await request.json()
+    const { amount } = body
 
     if (MOCK_AUCTIONS[id]) {
+      // Validate bid amount
+      if (!amount || amount <= MOCK_AUCTIONS[id].currentPrice) {
+        return NextResponse.json(
+          { error: `La puja debe ser mayor a ${MOCK_AUCTIONS[id].currentPrice}` },
+          { status: 400 }
+        )
+      }
+
+      // Update mock auction data
+      MOCK_AUCTIONS[id].currentPrice = amount
+      MOCK_AUCTIONS[id].bidCount = (MOCK_AUCTIONS[id].bidCount || 0) + 1
+
       return NextResponse.json({
-        message: 'Puja simulada exitosa',
-        bid: { id: 'mock-bid', amount: body.amount, userId: 'demo' }
+        message: 'Puja realizada exitosamente',
+        bid: {
+          id: `mock-bid-${Date.now()}`,
+          amount,
+          userId: 'demo',
+          createdAt: new Date().toISOString()
+        },
+        auction: MOCK_AUCTIONS[id]
       })
     }
 
-    // Lógica real... omitida para brevedad en este fix rápido
-    return NextResponse.json({ message: 'Funcionalidad de DB pendiente de verificar conexión' })
+    // Lógica real para DB
+    // TODO: Get user from session/auth
+    // For development, use first user as fallback
+    let userId = request.headers.get('x-user-id')
+
+    if (!userId) {
+      const firstUser = await prisma.user.findFirst({ where: { status: 'ACTIVE' } })
+      if (!firstUser) {
+        return NextResponse.json({ error: 'No hay usuarios disponibles' }, { status: 400 })
+      }
+      userId = firstUser.id
+    }
+
+    const auction = await prisma.auction.findUnique({
+      where: { id },
+      include: {
+        bids: {
+          orderBy: { amount: 'desc' },
+          take: 1
+        }
+      }
+    })
+
+    if (!auction) {
+      return NextResponse.json(
+        { error: 'Subasta no encontrada' },
+        { status: 404 }
+      )
+    }
+
+    // Validate bid
+    const currentHighestBid = auction.bids[0]?.amount || auction.startingPrice
+    if (amount <= currentHighestBid) {
+      return NextResponse.json(
+        { error: `La puja debe ser mayor a ${currentHighestBid}` },
+        { status: 400 }
+      )
+    }
+
+    // Create bid
+    const bid = await prisma.bid.create({
+      data: {
+        amount,
+        auctionId: id,
+        userId: userId
+      }
+    })
+
+    // Update auction current price
+    await prisma.auction.update({
+      where: { id },
+      data: { currentPrice: amount }
+    })
+
+    return NextResponse.json({
+      message: 'Puja realizada exitosamente',
+      bid
+    })
 
   } catch (error) {
-    return NextResponse.json({ error: 'Error' }, { status: 500 })
+    console.error('Error placing bid:', error)
+    return NextResponse.json({ error: 'Error al realizar la puja' }, { status: 500 })
   }
 }
 

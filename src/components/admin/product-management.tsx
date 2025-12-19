@@ -10,12 +10,12 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Eye, 
-  Ban, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Eye,
+  Ban,
   CheckCircle,
   MoreHorizontal,
   Package,
@@ -50,11 +50,11 @@ interface ProductManagementProps {
   onProductCreate: (productData: Omit<Product, 'id' | 'createdAt' | 'views' | 'favoritesCount' | 'salesCount'>) => void
 }
 
-export function ProductManagement({ 
-  products, 
-  categories, 
-  onProductUpdate, 
-  onProductCreate 
+export function ProductManagement({
+  products,
+  categories,
+  onProductUpdate,
+  onProductCreate
 }: ProductManagementProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -79,11 +79,11 @@ export function ProductManagement({
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.sellerName.toLowerCase().includes(searchTerm.toLowerCase())
+      product.sellerName.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = !statusFilter || product.status === statusFilter
     const matchesCondition = !conditionFilter || product.condition === conditionFilter
     const matchesCategory = !categoryFilter || product.categoryName === categoryFilter
-    
+
     return matchesSearch && matchesStatus && matchesCondition && matchesCategory
   })
 
@@ -94,7 +94,7 @@ export function ProductManagement({
       SOLD: 'bg-blue-100 text-blue-800',
       BANNED: 'bg-red-100 text-red-800'
     }
-    
+
     return (
       <Badge className={variants[status] || 'bg-gray-100 text-gray-800'}>
         {status}
@@ -108,7 +108,7 @@ export function ProductManagement({
       USED: 'bg-yellow-100 text-yellow-800',
       REFURBISHED: 'bg-blue-100 text-blue-800'
     }
-    
+
     return (
       <Badge className={variants[condition] || 'bg-gray-100 text-gray-800'}>
         {condition}
@@ -173,13 +173,13 @@ export function ProductManagement({
               className="pl-10 w-full sm:w-64"
             />
           </div>
-          
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+
+          <Select value={statusFilter || 'ALL'} onValueChange={(value) => setStatusFilter(value === 'ALL' ? '' : value)}>
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos los estados</SelectItem>
+              <SelectItem value="ALL">Todos los estados</SelectItem>
               <SelectItem value="ACTIVE">Activo</SelectItem>
               <SelectItem value="INACTIVE">Inactivo</SelectItem>
               <SelectItem value="SOLD">Vendido</SelectItem>
@@ -187,24 +187,24 @@ export function ProductManagement({
             </SelectContent>
           </Select>
 
-          <Select value={conditionFilter} onValueChange={setConditionFilter}>
+          <Select value={conditionFilter || 'ALL'} onValueChange={(value) => setConditionFilter(value === 'ALL' ? '' : value)}>
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Condición" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todas las condiciones</SelectItem>
+              <SelectItem value="ALL">Todas las condiciones</SelectItem>
               <SelectItem value="NEW">Nuevo</SelectItem>
               <SelectItem value="USED">Usado</SelectItem>
               <SelectItem value="REFURBISHED">Reacondicionado</SelectItem>
             </SelectContent>
           </Select>
 
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <Select value={categoryFilter || 'ALL'} onValueChange={(value) => setCategoryFilter(value === 'ALL' ? '' : value)}>
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Categoría" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todas las categorías</SelectItem>
+              <SelectItem value="ALL">Todas las categorías</SelectItem>
               {categories.map((category) => (
                 <SelectItem key={category.id} value={category.name}>
                   {category.name}
@@ -219,7 +219,7 @@ export function ProductManagement({
             <Filter className="h-4 w-4 mr-2" />
             Filtros
           </Button>
-          
+
           <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
             <DialogTrigger asChild>
               <Button size="sm">
@@ -429,7 +429,7 @@ export function ProductManagement({
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      
+
                       {product.status === 'ACTIVE' ? (
                         <Button
                           variant="outline"

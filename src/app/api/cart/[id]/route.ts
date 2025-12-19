@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { globalStore } from '@/lib/mock-data'
+import { prisma } from '@/lib/prisma'
+import { requireAuth, handleAuthError } from '@/lib/auth-middleware'
 
 const updateCartSchema = z.object({
   quantity: z.number().int().min(1, 'La cantidad debe ser al menos 1')
@@ -12,22 +13,38 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Verificar autenticación
+    const user = await requireAuth(request)
+
     const body = await request.json()
     const validatedData = updateCartSchema.parse(body)
 
-    // Buscar item en el carrito global
-    const itemIndex = globalStore.cart.items.findIndex((item: any) => item.id === params.id)
+    // Buscar el item del carrito
+    const cartItem = await prisma.cartItem.findUnique({
+      where: { id: params.id },
+      include: {
+        cart: true,
+        product: true
+      }
+    })
 
-    if (itemIndex === -1) {
+    if (!cartItem) {
       return NextResponse.json(
         { error: 'Item no encontrado en el carrito' },
         { status: 404 }
       )
     }
 
-    // Verificar stock (simulado)
-    const currentItem = globalStore.cart.items[itemIndex]
-    if (currentItem.product.stock < validatedData.quantity) {
+    // Verificar que el carrito pertenece al usuario
+    if (cartItem.cart.userId !== user.userId) {
+      return NextResponse.json(
+        { error: 'No tienes permiso para modificar este carrito' },
+        { status: 403 }
+      )
+    }
+
+    // Verificar stock
+    if (cartItem.product.stock < validatedData.quantity) {
       return NextResponse.json(
         { error: 'Stock insuficiente' },
         { status: 400 }
@@ -35,26 +52,41 @@ export async function PUT(
     }
 
     // Actualizar cantidad
-    globalStore.cart.items[itemIndex].quantity = validatedData.quantity
-
-    // Recalcular totales
-    let subtotal = 0
-    globalStore.cart.items.forEach((item: any) => {
-      subtotal += item.price * item.quantity
+    const updatedItem = await prisma.cartItem.update({
+      where: { id: params.id },
+      data: { quantity: validatedData.quantity },
+      include: {
+        product: {
+          include: {
+            seller: {
+              select: { id: true, name: true, rating: true }
+            }
+          }
+        }
+      }
     })
 
-    globalStore.cart.subtotal = subtotal
-    globalStore.cart.tax = subtotal * 0.15
-    globalStore.cart.shipping = subtotal > 1000 ? 0 : 150
-    globalStore.cart.total = subtotal + globalStore.cart.tax + globalStore.cart.shipping
-    globalStore.cart.itemCount = globalStore.cart.items.reduce((acc: number, item: any) => acc + item.quantity, 0)
+    // Recalcular totales del carrito
+    const cartItems = await prisma.cartItem.findMany({
+      where: { cartId: cartItem.cartId }
+    })
+
+    const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0)
+    const tax = subtotal * 0.15
+    const shipping = subtotal > 1000 ? 0 : 150
+    const total = subtotal + tax + shipping
+
+    await prisma.cart.update({
+      where: { id: cartItem.cartId },
+      data: { total }
+    })
 
     return NextResponse.json({
       message: 'Cantidad actualizada',
-      item: globalStore.cart.items[itemIndex]
+      item: updatedItem
     })
 
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Datos inválidos', details: error.issues },
@@ -62,10 +94,10 @@ export async function PUT(
       )
     }
 
-    console.error('Error actualizando item del carrito:', error)
+    const authError = handleAuthError(error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
+      { error: authError.error },
+      { status: authError.status }
     )
   }
 }
@@ -76,39 +108,61 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const itemIndex = globalStore.cart.items.findIndex((item: any) => item.id === params.id)
+    // Verificar autenticación
+    const user = await requireAuth(request)
 
-    if (itemIndex === -1) {
+    // Buscar el item del carrito
+    const cartItem = await prisma.cartItem.findUnique({
+      where: { id: params.id },
+      include: {
+        cart: true
+      }
+    })
+
+    if (!cartItem) {
       return NextResponse.json(
         { error: 'Item no encontrado en el carrito' },
         { status: 404 }
       )
     }
 
-    // Eliminar item
-    globalStore.cart.items.splice(itemIndex, 1)
+    // Verificar que el carrito pertenece al usuario
+    if (cartItem.cart.userId !== user.userId) {
+      return NextResponse.json(
+        { error: 'No tienes permiso para modificar este carrito' },
+        { status: 403 }
+      )
+    }
 
-    // Recalcular totales
-    let subtotal = 0
-    globalStore.cart.items.forEach((item: any) => {
-      subtotal += item.price * item.quantity
+    // Eliminar item
+    await prisma.cartItem.delete({
+      where: { id: params.id }
     })
 
-    globalStore.cart.subtotal = subtotal
-    globalStore.cart.tax = subtotal * 0.15
-    globalStore.cart.shipping = subtotal > 1000 ? 0 : 150
-    globalStore.cart.total = subtotal + globalStore.cart.tax + globalStore.cart.shipping
-    globalStore.cart.itemCount = globalStore.cart.items.reduce((acc: number, item: any) => acc + item.quantity, 0)
+    // Recalcular totales del carrito
+    const cartItems = await prisma.cartItem.findMany({
+      where: { cartId: cartItem.cartId }
+    })
+
+    const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0)
+    const tax = subtotal * 0.15
+    const shipping = subtotal > 1000 ? 0 : 150
+    const total = subtotal + tax + shipping
+
+    await prisma.cart.update({
+      where: { id: cartItem.cartId },
+      data: { total }
+    })
 
     return NextResponse.json({
       message: 'Item eliminado del carrito'
     })
 
-  } catch (error) {
-    console.error('Error eliminando item del carrito:', error)
+  } catch (error: any) {
+    const authError = handleAuthError(error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
+      { error: authError.error },
+      { status: authError.status }
     )
   }
 }

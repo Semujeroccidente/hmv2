@@ -10,12 +10,12 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Eye, 
-  Ban, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Eye,
+  Ban,
   CheckCircle,
   MoreHorizontal,
   Gavel,
@@ -51,10 +51,10 @@ interface AuctionManagementProps {
   onAuctionCreate: (auctionData: Omit<Auction, 'id' | 'bidCount' | 'createdAt'>) => void
 }
 
-export function AuctionManagement({ 
-  auctions, 
-  onAuctionUpdate, 
-  onAuctionCreate 
+export function AuctionManagement({
+  auctions,
+  onAuctionUpdate,
+  onAuctionCreate
 }: AuctionManagementProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -79,9 +79,9 @@ export function AuctionManagement({
 
   const filteredAuctions = auctions.filter(auction => {
     const matchesSearch = auction.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         auction.sellerName.toLowerCase().includes(searchTerm.toLowerCase())
+      auction.sellerName.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = !statusFilter || auction.status === statusFilter
-    
+
     return matchesSearch && matchesStatus
   })
 
@@ -93,7 +93,7 @@ export function AuctionManagement({
       SOLD: 'bg-blue-100 text-blue-800',
       EXPIRED: 'bg-yellow-100 text-yellow-800'
     }
-    
+
     return (
       <Badge className={variants[status] || 'bg-gray-100 text-gray-800'}>
         {status}
@@ -107,7 +107,7 @@ export function AuctionManagement({
       USED: 'bg-yellow-100 text-yellow-800',
       REFURBISHED: 'bg-blue-100 text-blue-800'
     }
-    
+
     return (
       <Badge className={variants[condition] || 'bg-gray-100 text-gray-800'}>
         {condition}
@@ -119,13 +119,13 @@ export function AuctionManagement({
     const now = new Date()
     const end = new Date(endDate)
     const diff = end.getTime() - now.getTime()
-    
+
     if (diff <= 0) return 'Finalizada'
-    
+
     const days = Math.floor(diff / (1000 * 60 * 60 * 24))
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-    
+
     if (days > 0) return `${days}d ${hours}h`
     if (hours > 0) return `${hours}h ${minutes}m`
     return `${minutes}m`
@@ -189,13 +189,13 @@ export function AuctionManagement({
               className="pl-10 w-full sm:w-64"
             />
           </div>
-          
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+
+          <Select value={statusFilter || 'ALL'} onValueChange={(value) => setStatusFilter(value === 'ALL' ? '' : value)}>
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos los estados</SelectItem>
+              <SelectItem value="ALL">Todos los estados</SelectItem>
               <SelectItem value="ACTIVE">Activa</SelectItem>
               <SelectItem value="ENDED">Finalizada</SelectItem>
               <SelectItem value="SOLD">Vendida</SelectItem>
@@ -210,7 +210,7 @@ export function AuctionManagement({
             <Filter className="h-4 w-4 mr-2" />
             Filtros
           </Button>
-          
+
           <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
             <DialogTrigger asChild>
               <Button size="sm">
@@ -421,7 +421,7 @@ export function AuctionManagement({
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      
+
                       {auction.status === 'ACTIVE' ? (
                         <Button
                           variant="outline"
