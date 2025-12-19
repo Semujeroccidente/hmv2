@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { CategoryGrid } from "@/components/marketplace/category-menu"
 import { Metadata } from "next"
+import { BackToHomeButton } from "@/components/ui/back-to-home-button"
 
 export const metadata: Metadata = {
     title: "Todas las Categorías | HonduMarket",
@@ -34,12 +35,25 @@ export default async function CategoriesPage() {
     }));
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Explorar Categorías</h1>
-            <p className="text-gray-600 mb-8">Encuentra todo lo que buscas en nuestras categorías principales.</p>
+        <div className="min-h-screen bg-gray-50">
+            <div className="container mx-auto px-4 py-8">
+                {/* Botón de volver */}
+                <BackToHomeButton />
 
-            <CategoryGrid categories={mappedCategories as any} />
-            {/* 'as any' to avoid strict type mismatch on dates/Json fields if they differ slightly from Interface in component */}
+                {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-4xl font-bold mb-2" style={{ color: '#003366' }}>
+                        Explorar Categorías
+                    </h1>
+                    <p className="text-gray-600 text-lg">
+                        Encuentra todo lo que buscas en nuestras categorías principales.
+                    </p>
+                </div>
+
+                {/* Grid de categorías */}
+                <CategoryGrid categories={mappedCategories as any} />
+                {/* 'as any' to avoid strict type mismatch on dates/Json fields if they differ slightly from Interface in component */}
+            </div>
         </div>
     )
 }

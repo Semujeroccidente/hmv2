@@ -195,37 +195,40 @@ export function CategoryMegaMenu({ categories }: CategoryMegaMenuProps) {
                                         {/* Subcategories */}
                                         {category.children && category.children.length > 0 && (
                                             <ul className="space-y-2 pl-1">
-                                                {category.children.slice(0, 5).map((child) => (
-                                                    <li key={child.id}>
-                                                        <Link
-                                                            href={`/categoria/${category.slug}/${child.slug}`}
-                                                            className="group/sub flex items-center text-xs text-gray-600 transition-all duration-200 py-1.5 px-2 rounded-lg hover:pl-3"
-                                                            style={{
-                                                                transition: 'all 0.2s ease'
-                                                            }}
-                                                            onMouseEnter={(e) => {
-                                                                e.currentTarget.style.backgroundColor = '#E6F7F5'
-                                                                e.currentTarget.style.color = '#00A896'
-                                                                const dot = e.currentTarget.querySelector('.dot-indicator')
-                                                                if (dot) (dot as HTMLElement).style.backgroundColor = '#00A896'
-                                                            }}
-                                                            onMouseLeave={(e) => {
-                                                                e.currentTarget.style.backgroundColor = 'transparent'
-                                                                e.currentTarget.style.color = '#4B5563'
-                                                                const dot = e.currentTarget.querySelector('.dot-indicator')
-                                                                if (dot) (dot as HTMLElement).style.backgroundColor = '#D1D5DB'
-                                                            }}
-                                                            onClick={() => setIsOpen(false)}
-                                                        >
-                                                            <span
-                                                                className="dot-indicator w-1 h-1 rounded-full mr-2 transition-colors duration-200"
-                                                                style={{ backgroundColor: '#D1D5DB' }}
-                                                            ></span>
-                                                            {child.name}
-                                                        </Link>
-                                                    </li>
-                                                ))}
-                                                {category.children.length > 5 && (
+                                                {category.children
+                                                    .filter(child => child.name && child.slug) // Solo mostrar si tiene nombre y slug
+                                                    .slice(0, 5)
+                                                    .map((child) => (
+                                                        <li key={child.id}>
+                                                            <Link
+                                                                href={`/categoria/${category.slug}/${child.slug}`}
+                                                                className="group/sub flex items-center text-xs text-gray-600 transition-all duration-200 py-1.5 px-2 rounded-lg hover:pl-3"
+                                                                style={{
+                                                                    transition: 'all 0.2s ease'
+                                                                }}
+                                                                onMouseEnter={(e) => {
+                                                                    e.currentTarget.style.backgroundColor = '#E6F7F5'
+                                                                    e.currentTarget.style.color = '#00A896'
+                                                                    const dot = e.currentTarget.querySelector('.dot-indicator')
+                                                                    if (dot) (dot as HTMLElement).style.backgroundColor = '#00A896'
+                                                                }}
+                                                                onMouseLeave={(e) => {
+                                                                    e.currentTarget.style.backgroundColor = 'transparent'
+                                                                    e.currentTarget.style.color = '#4B5563'
+                                                                    const dot = e.currentTarget.querySelector('.dot-indicator')
+                                                                    if (dot) (dot as HTMLElement).style.backgroundColor = '#D1D5DB'
+                                                                }}
+                                                                onClick={() => setIsOpen(false)}
+                                                            >
+                                                                <span
+                                                                    className="dot-indicator w-1 h-1 rounded-full mr-2 transition-colors duration-200"
+                                                                    style={{ backgroundColor: '#D1D5DB' }}
+                                                                ></span>
+                                                                {child.name}
+                                                            </Link>
+                                                        </li>
+                                                    ))}
+                                                {category.children.filter(child => child.name && child.slug).length > 5 && (
                                                     <li>
                                                         <Link
                                                             href={`/categoria/${category.slug}`}
@@ -241,7 +244,7 @@ export function CategoryMegaMenu({ categories }: CategoryMegaMenuProps) {
                                                             }}
                                                             onClick={() => setIsOpen(false)}
                                                         >
-                                                            Ver todas ({category.children.length}) →
+                                                            Ver todas ({category.children.filter(child => child.name && child.slug).length}) →
                                                         </Link>
                                                     </li>
                                                 )}
@@ -335,25 +338,27 @@ export function CategoryMegaMenu({ categories }: CategoryMegaMenuProps) {
                                                 >
                                                     Ver todo en {category.name} →
                                                 </Link>
-                                                {category.children.map((child) => (
-                                                    <Link
-                                                        key={child.id}
-                                                        href={`/categoria/${category.slug}/${child.slug}`}
-                                                        className="flex items-center py-2.5 pl-6 pr-4 text-xs text-gray-700 transition-all duration-200"
-                                                        onMouseEnter={(e) => {
-                                                            e.currentTarget.style.backgroundColor = '#ffffff'
-                                                            e.currentTarget.style.color = '#00A896'
-                                                        }}
-                                                        onMouseLeave={(e) => {
-                                                            e.currentTarget.style.backgroundColor = 'transparent'
-                                                            e.currentTarget.style.color = '#374151'
-                                                        }}
-                                                        onClick={() => setIsOpen(false)}
-                                                    >
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-gray-300 mr-2.5"></span>
-                                                        {child.name}
-                                                    </Link>
-                                                ))}
+                                                {category.children
+                                                    .filter(child => child.name && child.slug)
+                                                    .map((child) => (
+                                                        <Link
+                                                            key={child.id}
+                                                            href={`/categoria/${category.slug}/${child.slug}`}
+                                                            className="flex items-center py-2.5 pl-6 pr-4 text-xs text-gray-700 transition-all duration-200"
+                                                            onMouseEnter={(e) => {
+                                                                e.currentTarget.style.backgroundColor = '#ffffff'
+                                                                e.currentTarget.style.color = '#00A896'
+                                                            }}
+                                                            onMouseLeave={(e) => {
+                                                                e.currentTarget.style.backgroundColor = 'transparent'
+                                                                e.currentTarget.style.color = '#374151'
+                                                            }}
+                                                            onClick={() => setIsOpen(false)}
+                                                        >
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-gray-300 mr-2.5"></span>
+                                                            {child.name}
+                                                        </Link>
+                                                    ))}
                                             </div>
                                         )}
                                     </div>
