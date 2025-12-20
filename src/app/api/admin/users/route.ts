@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,16 +15,16 @@ export async function GET(request: NextRequest) {
     // Build where clause for search
     const where = search
       ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } }
-          ]
-        }
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } }
+        ]
+      }
       : {}
 
     // Get users with pagination and sorting
     const [users, totalCount] = await Promise.all([
-      db.user.findMany({
+      prisma.user.findMany({
         where,
         skip,
         take: limit,
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
           }
         }
       }),
-      db.user.count({ where })
+      prisma.user.count({ where })
     ])
 
     const totalPages = Math.ceil(totalCount / limit)
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     const { name, email, role, status } = await request.json()
 
     // Check if user already exists
-    const existingUser = await db.user.findUnique({
+    const existingUser = await prisma.user.findUnique({
       where: { email }
     })
 
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new user
-    const user = await db.user.create({
+    const user = await prisma.user.create({
       data: {
         name,
         email,

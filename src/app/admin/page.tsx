@@ -11,12 +11,12 @@ import { ProductManagement } from '@/components/admin/product-management'
 import { AuctionManagement } from '@/components/admin/auction-management'
 import { OrderManagement } from '@/components/admin/order-management'
 import { CategoryManagement } from '@/components/admin/category-management'
-import { 
-  Users, 
-  ShoppingBag, 
-  Gavel, 
-  DollarSign, 
-  TrendingUp, 
+import {
+  Users,
+  ShoppingBag,
+  Gavel,
+  DollarSign,
+  TrendingUp,
   TrendingDown,
   Eye,
   Ban,
@@ -70,7 +70,7 @@ export default function AdminDashboard() {
   const loadDashboardData = async () => {
     try {
       setIsLoading(true)
-      
+
       // Load dashboard statistics
       const statsResponse = await fetch('/api/admin/dashboard/stats')
       if (statsResponse.ok) {
@@ -490,7 +490,7 @@ export default function AdminDashboard() {
       SOLD: 'bg-blue-100 text-blue-800',
       EXPIRED: 'bg-gray-100 text-gray-800'
     }
-    
+
     return (
       <Badge className={variants[status] || 'bg-gray-100 text-gray-800'}>
         {status}
@@ -523,6 +523,12 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              <Button variant="outline" size="sm" asChild>
+                <a href="/">
+                  <ArrowDownRight className="h-4 w-4 mr-2 rotate-90" />
+                  Volver a la tienda
+                </a>
+              </Button>
               <Button variant="outline" size="sm" onClick={loadDashboardData}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Actualizar
@@ -724,7 +730,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="categories" className="space-y-6">
-            <CategoryManagement 
+            <CategoryManagement
               categories={categories}
               onCategoryUpdate={handleCategoryUpdate}
               onCategoryCreate={handleCategoryCreate}
@@ -733,7 +739,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
-            <UserManagement 
+            <UserManagement
               users={recentUsers}
               onUserUpdate={handleUserUpdate}
               onUserCreate={handleUserCreate}
@@ -741,7 +747,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="products" className="space-y-6">
-            <ProductManagement 
+            <ProductManagement
               products={recentProducts}
               categories={categories}
               onProductUpdate={handleProductUpdate}
@@ -750,7 +756,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="auctions" className="space-y-6">
-            <AuctionManagement 
+            <AuctionManagement
               auctions={recentAuctions}
               onAuctionUpdate={handleAuctionUpdate}
               onAuctionCreate={handleAuctionCreate}
@@ -758,7 +764,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="orders" className="space-y-6">
-            <OrderManagement 
+            <OrderManagement
               orders={recentOrders}
               onOrderUpdate={handleOrderUpdate}
               onOrderCreate={handleOrderCreate}

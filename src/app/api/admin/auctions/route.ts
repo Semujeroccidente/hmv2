@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
+import { requireAdmin, handleAuthError } from '@/lib/auth-middleware'
 
 export async function GET(request: NextRequest) {
   try {
+    // Verificar que el usuario es admin
+    await requireAdmin(request)
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
     const sortBy = searchParams.get('sortBy') || 'createdAt'
@@ -15,12 +18,14 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where = {}
-    
+
     if (search) {
-      where['OR'] = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } }
-      ]
+      where['product'] = {
+        OR: [
+          { title: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } }
+        ]
+      }
     }
 
     if (status) {
@@ -29,18 +34,26 @@ export async function GET(request: NextRequest) {
 
     // Get auctions with pagination and sorting
     const [auctions, totalCount] = await Promise.all([
-      db.auction.findMany({
+      prisma.auction.findMany({
         where,
         skip,
         take: limit,
         orderBy: {
           [sortBy]: sortOrder
         },
-        include: {
+        select: {
+          id: true,
+          startingPrice: true,
+          currentPrice: true,
+          reservePrice: true,
+          status: true,
+          endDate: true,
+          createdAt: true,
           product: {
             select: {
               id: true,
               title: true,
+              description: true,
               condition: true,
               seller: {
                 select: {
@@ -51,13 +64,6 @@ export async function GET(request: NextRequest) {
               }
             }
           },
-          seller: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          },
           _count: {
             select: {
               bids: true
@@ -65,21 +71,21 @@ export async function GET(request: NextRequest) {
           }
         }
       }),
-      db.auction.count({ where })
+      prisma.auction.count({ where })
     ])
 
     // Transform data for frontend
     const transformedAuctions = auctions.map(auction => ({
       id: auction.id,
-      title: auction.title,
-      description: auction.description,
+      title: auction.product.title,
+      description: auction.product.description,
       startingPrice: auction.startingPrice,
       currentPrice: auction.currentPrice,
       reservePrice: auction.reservePrice,
       status: auction.status,
       endDate: auction.endDate,
-      sellerName: auction.seller.name,
-      sellerEmail: auction.seller.email,
+      sellerName: auction.product.seller.name,
+      sellerEmail: auction.product.seller.email,
       productName: auction.product.title,
       productCondition: auction.product.condition,
       bidCount: auction._count.bids || 0,
@@ -97,38 +103,34 @@ export async function GET(request: NextRequest) {
         totalPages
       }
     })
-  } catch (error) {
-    console.error('Error fetching admin auctions:', error)
+  } catch (error: any) {
+    const authError = handleAuthError(error)
     return NextResponse.json(
-      { error: 'Error fetching auctions' },
-      { status: 500 }
+      { error: authError.error },
+      { status: authError.status }
     )
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    // Verificar que el usuario es admin
+    await requireAdmin(request)
     const {
-      title,
-      description,
       startingPrice,
       reservePrice,
       endDate,
-      productId,
-      sellerId
+      productId
     } = await request.json()
 
     // Create new auction
-    const auction = await db.auction.create({
+    const auction = await prisma.auction.create({
       data: {
-        title,
-        description,
         startingPrice,
         currentPrice: startingPrice,
         reservePrice,
         endDate: new Date(endDate),
         productId,
-        sellerId,
         status: 'ACTIVE'
       },
       include: {
@@ -136,6 +138,7 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             title: true,
+            description: true,
             condition: true,
             seller: {
               select: {
@@ -145,23 +148,16 @@ export async function POST(request: NextRequest) {
               }
             }
           }
-        },
-        seller: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
         }
       }
     })
 
     return NextResponse.json(auction, { status: 201 })
-  } catch (error) {
-    console.error('Error creating auction:', error)
+  } catch (error: any) {
+    const authError = handleAuthError(error)
     return NextResponse.json(
-      { error: 'Error creating auction' },
-      { status: 500 }
+      { error: authError.error },
+      { status: authError.status }
     )
   }
 }

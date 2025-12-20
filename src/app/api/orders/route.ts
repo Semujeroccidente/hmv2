@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import { requireAuth, handleAuthError } from '@/lib/auth-middleware'
 
 // GET - Obtener pedidos del usuario
 export async function GET(request: NextRequest) {
@@ -10,14 +11,9 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const status = searchParams.get('status')
 
-    // TODO: Obtener userId del token JWT
-    // Por ahora usamos el primer usuario de la DB
-    const user = await prisma.user.findFirst()
-    const userId = user?.id
-
-    if (!userId) {
-      return NextResponse.json({ orders: [], pagination: { page, limit, total: 0, pages: 0 } })
-    }
+    // Verificar autenticación
+    const user = await requireAuth(request)
+    const userId = user.userId
 
     // Construir filtros de DB
     const where: Prisma.OrderWhereInput = {
@@ -71,11 +67,11 @@ export async function GET(request: NextRequest) {
       }
     })
 
-  } catch (error) {
-    console.error('Error general en pedidos:', error)
+  } catch (error: any) {
+    const authError = handleAuthError(error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
+      { error: authError.error },
+      { status: authError.status }
     )
   }
 }

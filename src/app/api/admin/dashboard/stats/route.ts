@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,9 +16,9 @@ export async function GET(request: NextRequest) {
       pendingOrders
     ] = await Promise.all([
       // Total users
-      db.user.count(),
+      prisma.user.count(),
       // Active users (logged in within last 30 days)
-      db.user.count({
+      prisma.user.count({
         where: {
           lastLogin: {
             gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
@@ -26,31 +26,31 @@ export async function GET(request: NextRequest) {
         }
       }),
       // Total products
-      db.product.count(),
+      prisma.product.count(),
       // Active products
-      db.product.count({
+      prisma.product.count({
         where: {
           status: 'ACTIVE'
         }
       }),
       // Total auctions
-      db.auction.count(),
+      prisma.auction.count(),
       // Active auctions
-      db.auction.count({
+      prisma.auction.count({
         where: {
           status: 'ACTIVE'
         }
       }),
       // Total orders
-      db.order.count(),
+      prisma.order.count(),
       // Completed orders
-      db.order.count({
+      prisma.order.count({
         where: {
           status: 'COMPLETED'
         }
       }),
       // Pending orders
-      db.order.count({
+      prisma.order.count({
         where: {
           status: 'PENDING'
         }

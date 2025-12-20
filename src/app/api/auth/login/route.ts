@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import jwt from 'jsonwebtoken'
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const validatedData = loginSchema.parse(body)
 
     // Buscar usuario
-    const user = await db.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { email: validatedData.email }
     })
 

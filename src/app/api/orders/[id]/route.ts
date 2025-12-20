@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
+import { requireAuth, handleAuthError } from '@/lib/auth-middleware'
 
 // PUT - Actualizar estado de un pedido
 export async function PUT(
@@ -10,8 +11,10 @@ export async function PUT(
     const body = await request.json()
     const { status, paymentStatus } = body
 
-    // TODO: Verificar que el pedido pertenece al usuario
-    const order = await db.order.findUnique({
+    // Verificar autenticación
+    const user = await requireAuth(request)
+
+    const order = await prisma.order.findUnique({
       where: { id: params.id }
     })
 
@@ -19,6 +22,14 @@ export async function PUT(
       return NextResponse.json(
         { error: 'Pedido no encontrado' },
         { status: 404 }
+      )
+    }
+
+    // Verificar que el pedido pertenece al usuario
+    if (order.userId !== user.userId) {
+      return NextResponse.json(
+        { error: 'No tienes permiso para modificar este pedido' },
+        { status: 403 }
       )
     }
 
@@ -40,7 +51,7 @@ export async function PUT(
     }
 
     // Actualizar pedido
-    const updatedOrder = await db.order.update({
+    const updatedOrder = await prisma.order.update({
       where: { id: params.id },
       data: {
         ...(status && { status }),
@@ -53,11 +64,11 @@ export async function PUT(
       order: updatedOrder
     })
 
-  } catch (error) {
-    console.error('Error actualizando pedido:', error)
+  } catch (error: any) {
+    const authError = handleAuthError(error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
+      { error: authError.error },
+      { status: authError.status }
     )
   }
 }
@@ -68,8 +79,10 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // TODO: Verificar que el pedido pertenece al usuario
-    const order = await db.order.findUnique({
+    // Verificar autenticación
+    const user = await requireAuth(request)
+
+    const order = await prisma.order.findUnique({
       where: { id: params.id },
       include: {
         user: {
@@ -107,13 +120,21 @@ export async function GET(
       )
     }
 
+    // Verificar que el pedido pertenece al usuario
+    if (order.userId !== user.userId) {
+      return NextResponse.json(
+        { error: 'No tienes permiso para ver este pedido' },
+        { status: 403 }
+      )
+    }
+
     return NextResponse.json({ order })
 
-  } catch (error) {
-    console.error('Error obteniendo pedido:', error)
+  } catch (error: any) {
+    const authError = handleAuthError(error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
+      { error: authError.error },
+      { status: authError.status }
     )
   }
 }

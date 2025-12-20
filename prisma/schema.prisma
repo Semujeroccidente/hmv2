@@ -16,6 +16,7 @@ model User {
   name      String
   password  String
   role      Role     @default(USER)
+  status    UserStatus @default(ACTIVE)
   avatar    String?
   phone     String?
   bio       String?
@@ -40,6 +41,8 @@ model User {
   // Relaciones sociales
   followers Follow[] @relation("Following")
   following Follow[] @relation("Followers")
+  
+  reportsReported Report[] @relation("ReportedUser")
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -72,19 +75,30 @@ model Address {
 
 // Categorías de productos
 model Category {
-  id          String      @id @default(cuid())
-  name        String      @unique
-  description String?
-  icon        String?
+  id                String      @id @default(cuid())
+  name              String      @unique
+  slug              String      @unique
+  description       String?
+  icon              String?
+  
+  // Jerarquía
+  level             Int         @default(1)
+  visualOrder       Int         @default(0)
+  active            Boolean     @default(true)
+  
+  // Atributos específicos
+  attributeTemplate String?     // JSON: define qué atributos pide esta categoría (ej: "talla", "color")
   
   // Relaciones
-  products    Product[]
-  parent      Category?   @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  parentId    String?
-  children    Category[]  @relation("CategoryHierarchy")
+  products          Product[]   @relation("PrimaryCategory")
+  secondaryProducts Product[]   @relation("SecondaryCategories")
   
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  parent            Category?   @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  parentId          String?
+  children          Category[]  @relation("CategoryHierarchy")
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 }
 
 // Productos
@@ -112,17 +126,25 @@ model Product {
   slug        String      @unique
   tags        String?     // JSON string de array de tags
   
+  // Atributos dinámicos
+  attributes  String?     // JSON: valores de los atributos (ej: {"color": "rojo"})
+  
   // Relaciones
   sellerId    String
   seller      User        @relation(fields: [sellerId], references: [id])
+  
   categoryId  String
-  category    Category    @relation(fields: [categoryId], references: [id])
+  category    Category    @relation("PrimaryCategory", fields: [categoryId], references: [id])
+  
+  // Categorías adicionales (hasta 3 en total con la principal)
+  otherCategories Category[] @relation("SecondaryCategories")
   
   reviews     Review[]
   orderItems  OrderItem[]
   favorites   Favorite[]
   auction     Auction?
   cartItems   CartItem[]
+  reports     Report[]
   
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -241,7 +263,34 @@ model Review {
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
 }
+
+// Reportes de moderación
+model Report {
+  id          String   @id @default(cuid())
+  type        String   // review, user, product, auction, system
+  description String
+  reportedBy  String   // Puede ser ID de usuario o nombre si es anonimo (aunque sistema actual usa auth)
+  
+  // Objetos reportados (opcionales)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id])
+  userId      String?  // Usuario reportado
+  user        User?    @relation("ReportedUser", fields: [userId], references: [id])
+  
+  status      String   @default("pending") // pending, reviewing, resolved, dismissed
+  
+  // Datos de moderación
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  resolvedAt  DateTime?
+  notes       String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 
 // Mensajes entre usuarios
 model Message {
@@ -279,6 +328,12 @@ enum Role {
   USER
   SELLER
   ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
 }
 
 enum CartStatus {

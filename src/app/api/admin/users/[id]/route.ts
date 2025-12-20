@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
 // GET - Obtener detalles de un usuario
@@ -11,7 +11,7 @@ export async function GET(
     // TODO: Verificar que el usuario es admin
     const userId = 'admin-id-temporal' // Admin temporal para desarrollo
 
-    const user = await db.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: params.id },
       include: {
         id: true,
@@ -41,7 +41,7 @@ export async function GET(
     }
 
     // Obtener pedidos del usuario
-    const orders = await db.order.findMany({
+    const orders = await prisma.order.findMany({
       where: { userId },
       include: {
         items: {
@@ -56,39 +56,39 @@ export async function GET(
             }
           }
         },
-        },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        take: 10
-      }
-    })
-
-    // Calcular estadísticas del vendedor
-    const stats = await db.order.aggregate({
-      where: { userId },
-      _count: true,
-      _sum: {
-        total: true
       },
-      _avg: {
-        total: true
-      }
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: 10
+    }
     })
 
-    return NextResponse.json({
-      user: {
-        ...user,
-        stats,
-        orders
-      }
-    })
+  // Calcular estadísticas del vendedor
+  const stats = await prisma.order.aggregate({
+    where: { userId },
+    _count: true,
+    _sum: {
+      total: true
+    },
+    _avg: {
+      total: true
+    }
+  })
 
-  } catch (error) {
-    console.error('Error obteniendo detalles del usuario:', error)
-    return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
-    )
-  }
+  return NextResponse.json({
+    user: {
+      ...user,
+      stats,
+      orders
+    }
+  })
+
+} catch (error) {
+  console.error('Error obteniendo detalles del usuario:', error)
+  return NextResponse.json(
+    { error: 'Error interno del servidor' },
+    { status: 500 }
+  )
+}
 }

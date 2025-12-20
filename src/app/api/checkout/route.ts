@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { requireAuth, handleAuthError } from '@/lib/auth-middleware'
 
 const checkoutSchema = z.object({
   items: z.array(z.object({
@@ -25,14 +26,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = checkoutSchema.parse(body)
 
-    // TODO: Obtener userId del token JWT
-    const userId = 'user-id-temporal' // Usuario temporal para desarrollo
+    // Verificar autenticación
+    const user = await requireAuth(request)
+    const userId = user.userId
 
     // Verificar stock disponible para todos los items
     for (const item of validatedData.items) {
       // ... handled by regex replacement in actual diff ...
       // Actually, I should use replace_file_content multiple times or use multi_replace.
-      // Since 'db.' appears many times, strict replace_file_content with regex isn't supported directly like that.
+      // Since 'prisma.' appears many times, strict replace_file_content with regex isn't supported directly like that.
       // I'll just replace the whole file content or use multi_replace for specific blocks if I can match them.
       // But wait, allow_multiple=true is supported.
       const product = await prisma.product.findUnique({
@@ -93,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     // Actualizar stock de productos
     for (const item of validatedData.items) {
-      await db.product.update({
+      await prisma.product.update({
         where: { id: item.productId },
         data: {
           stock: {
@@ -104,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Convertir carrito a estado CONVERTED
-    const cart = await db.cart.findFirst({
+    const cart = await prisma.cart.findFirst({
       where: {
         userId,
         status: 'ACTIVE'
@@ -112,7 +114,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (cart) {
-      await db.cart.update({
+      await prisma.cart.update({
         where: { id: cart.id },
         data: {
           status: 'CONVERTED'
@@ -135,7 +137,7 @@ export async function POST(request: NextRequest) {
       }
     }, { status: 201 })
 
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Datos inválidos', details: error.issues },
@@ -143,10 +145,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.error('Error en checkout:', error)
+    const authError = handleAuthError(error)
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
+      { error: authError.error },
+      { status: authError.status }
     )
   }
 }

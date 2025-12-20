@@ -11,9 +11,9 @@ import { ShippingForm } from '@/components/checkout/shipping-form'
 import { PaymentForm } from '@/components/checkout/payment-form'
 import { OrderSummary } from '@/components/checkout/order-summary'
 import { useCart } from '@/hooks/use-cart'
-import { 
-  ArrowLeft, 
-  ShoppingBag, 
+import {
+  ArrowLeft,
+  ShoppingBag,
   CheckCircle,
   AlertTriangle,
   Truck,
@@ -23,13 +23,13 @@ import {
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { 
-    cart, 
-    isLoading, 
-    itemCount, 
-    subtotal, 
-    tax, 
-    shippingCost, 
+  const {
+    cart,
+    isLoading,
+    itemCount,
+    subtotal,
+    tax,
+    shippingCost,
     total,
     clearCart
   } = useCart()
@@ -57,7 +57,7 @@ export default function CheckoutPage() {
 
   const validateShipping = () => {
     const newErrors = {}
-    
+
     if (!shippingAddress.street.trim()) {
       newErrors.street = 'La calle es requerida'
     }
@@ -82,8 +82,10 @@ export default function CheckoutPage() {
   }
 
   const handlePaymentNext = () => {
-    if (isPaymentValid) {
+    if (paymentMethod) {
       setCurrentStep(3)
+    } else {
+      setErrors({ general: 'Por favor selecciona un método de pago' })
     }
   }
 
@@ -92,8 +94,28 @@ export default function CheckoutPage() {
   }
 
   const handleCheckout = async () => {
+    console.log('=== CHECKOUT INICIADO ===')
+    console.log('Dirección:', shippingAddress)
+    console.log('Método de pago:', paymentMethod)
+    console.log('Items del carrito:', cart?.items)
+
     if (!validateShipping()) {
-      setErrors({ ...errors, general: 'Por favor completa la información de envío' })
+      console.log('Error: Validación de envío falló')
+      setErrors({ general: 'Por favor completa la información de envío' })
+      setCurrentStep(1)
+      return
+    }
+
+    if (!paymentMethod) {
+      console.log('Error: No hay método de pago seleccionado')
+      setErrors({ general: 'Por favor selecciona un método de pago' })
+      setCurrentStep(2)
+      return
+    }
+
+    if (!cart || !cart.items || cart.items.length === 0) {
+      console.log('Error: Carrito vacío')
+      setErrors({ general: 'Tu carrito está vacío' })
       return
     }
 
@@ -101,36 +123,46 @@ export default function CheckoutPage() {
     setErrors({})
 
     try {
+      const requestBody = {
+        items: cart.items.map(item => ({
+          productId: item.product.id,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        shippingAddress,
+        paymentMethod
+      }
+
+      console.log('Enviando request:', requestBody)
+
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          items: cart.items.map(item => ({
-            productId: item.product.id,
-            quantity: item.quantity,
-            price: item.price
-          })),
-          shippingAddress,
-          paymentMethod
-        })
+        body: JSON.stringify(requestBody)
       })
 
+      console.log('Response status:', response.status)
       const data = await response.json()
+      console.log('Response data:', data)
 
       if (response.ok) {
+        console.log('Pedido creado exitosamente:', data.order)
         setOrderData(data.order)
         setOrderComplete(true)
         await clearCart()
         setCurrentStep(4)
       } else {
-        setErrors({ general: data.error })
+        console.error('Error del servidor:', data.error)
+        setErrors({ general: data.error || 'Error al procesar el pedido' })
       }
     } catch (error) {
+      console.error('Error de conexión:', error)
       setErrors({ general: 'Error de conexión. Intenta nuevamente.' })
     } finally {
       setIsProcessing(false)
+      console.log('=== CHECKOUT FINALIZADO ===')
     }
   }
 
@@ -148,15 +180,15 @@ export default function CheckoutPage() {
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
-          
+
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
             ¡Pedido Completado!
           </h1>
-          
+
           <p className="text-gray-600 mb-6">
             Tu pedido #{orderData?.orderNumber} ha sido creado exitosamente.
           </p>
-          
+
           <div className="bg-white p-6 rounded-lg shadow-sm border">
             <div className="space-y-3">
               <div className="flex justify-between">
@@ -173,7 +205,7 @@ export default function CheckoutPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="space-y-3 mt-6">
             <Button onClick={() => router.push('/mis-pedidos')} className="w-full">
               Ver Mis Pedidos
@@ -182,7 +214,7 @@ export default function CheckoutPage() {
               Seguir Comprando
             </Button>
           </div>
-          
+
           <div className="mt-8 p-4 bg-blue-50 rounded-lg">
             <div className="flex items-center gap-2 text-blue-800">
               <Truck className="h-4 w-4" />
@@ -212,7 +244,7 @@ export default function CheckoutPage() {
                 <span className="font-semibold text-gray-900">Checkout</span>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span>Paso {currentStep} de 3</span>
               <div className="flex gap-1">
@@ -232,20 +264,37 @@ export default function CheckoutPage() {
             <div className="lg:col-span-2 space-y-6">
               {/* Step 1: Shipping */}
               {currentStep === 1 && (
-                <ShippingForm
-                  address={shippingAddress}
-                  onChange={setShippingAddress}
-                  errors={errors}
-                />
+                <div className="space-y-4">
+                  <ShippingForm
+                    address={shippingAddress}
+                    onChange={setShippingAddress}
+                    errors={errors}
+                  />
+                  <div className="flex justify-end">
+                    <Button onClick={handleShippingNext} size="lg">
+                      Continuar al Pago
+                    </Button>
+                  </div>
+                </div>
               )}
 
               {/* Step 2: Payment */}
               {currentStep === 2 && (
-                <PaymentForm
-                  paymentMethod={paymentMethod}
-                  onChange={setPaymentMethod}
-                  onValidationComplete={setIsPaymentValid}
-                />
+                <div className="space-y-4">
+                  <PaymentForm
+                    paymentMethod={paymentMethod}
+                    onChange={setPaymentMethod}
+                    onValidationComplete={setIsPaymentValid}
+                  />
+                  <div className="flex gap-3">
+                    <Button variant="outline" onClick={handleBack}>
+                      Anterior
+                    </Button>
+                    <Button onClick={handlePaymentNext} disabled={!paymentMethod}>
+                      Revisar Pedido
+                    </Button>
+                  </div>
+                </div>
               )}
 
               {/* Step 3: Review */}
@@ -258,11 +307,11 @@ export default function CheckoutPage() {
                     <div className="space-y-4">
                       <Alert>
                         <AlertDescription>
-                          Por favor revisa cuidadosamente tu pedido antes de confirmar. 
+                          Por favor revisa cuidadosamente tu pedido antes de confirmar.
                           Una vez confirmado, no podrás hacer cambios.
                         </AlertDescription>
                       </Alert>
-                      
+
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <h4 className="font-medium mb-3">Dirección de Envío</h4>
                         <p className="text-sm">
@@ -271,7 +320,7 @@ export default function CheckoutPage() {
                           {shippingAddress.zipCode}
                         </p>
                       </div>
-                      
+
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <h4 className="font-medium mb-3">Método de Pago</h4>
                         <p className="text-sm capitalize">
@@ -282,7 +331,7 @@ export default function CheckoutPage() {
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-3">
                       <Button variant="outline" onClick={handleBack}>
                         Anterior
@@ -296,7 +345,7 @@ export default function CheckoutPage() {
                         ) : (
                           <>
                             Confirmar Pedido
-                          <Truck className="ml-2 h-4 w-4" />
+                            <Truck className="ml-2 h-4 w-4" />
                           </>
                         )}
                       </Button>
@@ -316,7 +365,7 @@ export default function CheckoutPage() {
                 shippingCost={shippingCost}
                 tax={tax}
                 total={total}
-                onCheckout={currentStep === 3 ? handleCheckout : () => {}}
+                onCheckout={currentStep === 3 ? handleCheckout : () => { }}
                 isProcessing={isProcessing}
               />
             </div>

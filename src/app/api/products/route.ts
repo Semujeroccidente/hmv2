@@ -1,140 +1,166 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { slugify } from '@/lib/utils';
+import { z } from 'zod';
+import jwt from 'jsonwebtoken';
 
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { z } from 'zod'
-import { Prisma } from '@prisma/client'
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-const createProductSchema = z.object({
+const productSchema = z.object({
   title: z.string().min(3, 'El título debe tener al menos 3 caracteres'),
   description: z.string().min(10, 'La descripción debe tener al menos 10 caracteres'),
-  price: z.number().positive('El precio debe ser mayor a 0'),
-  originalPrice: z.number().positive().optional(),
+  price: z.number().positive('El precio debe ser positivo'),
   condition: z.enum(['NEW', 'USED', 'REFURBISHED']),
-  stock: z.number().int().min(0, 'El stock debe ser mayor o igual a 0'),
-  categoryId: z.string().min(1, 'La categoría es requerida'),
-  images: z.array(z.string().url()).optional(),
-  tags: z.array(z.string()).optional()
-})
+  stock: z.number().int().min(1, 'El stock debe ser al menos 1'),
+  categoryId: z.string().min(1, 'La categoría principal es requerida'),
+  otherCategoryIds: z.array(z.string()).optional(),
+  images: z.array(z.string().url()).min(1, 'Al menos una imagen es requerida'),
+  attributes: z.record(z.string(), z.any()).optional(), // JSON for attributes
+});
 
-// GET - Obtener todos los productos
+// GET: Fetch products with filters
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '12')
-    const categoryId = searchParams.get('category')
-    const search = searchParams.get('search')
-    const sortBy = searchParams.get('sortBy') || 'createdAt'
-    const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc'
+    const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const page = parseInt(searchParams.get('page') || '1');
+    const category = searchParams.get('category');
+    const search = searchParams.get('search');
 
-    // Construir filtro
-    const where: Prisma.ProductWhereInput = {
-      status: 'ACTIVE'
-    }
+    const skip = (page - 1) * limit;
 
-    if (categoryId) {
-      where.categoryId = categoryId
+    const where: any = {
+      status: 'ACTIVE',
+    };
+
+    if (category) {
+      where.OR = [
+        { category: { slug: category } },
+        { otherCategories: { some: { slug: category } } }
+      ];
     }
 
     if (search) {
-      where.OR = [
-        { title: { contains: search } }, // SQLite no soporta mode: 'insensitive' nativo fácilmente en Prisma basic, pero funciona ok
-        { description: { contains: search } }
+      where.AND = [
+        {
+          OR: [
+            { title: { contains: search } },
+            { description: { contains: search } }
+          ]
+        }
       ]
     }
-
-    // Ordenamiento
-    let orderBy: Prisma.ProductOrderByWithRelationInput = {}
-    if (sortBy === 'price') {
-      orderBy = { price: sortOrder }
-    } else {
-      orderBy = { createdAt: sortOrder }
-    }
-
-    // Paginación
-    const skip = (page - 1) * limit
 
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where,
-        orderBy,
-        skip,
         take: limit,
+        skip,
+        orderBy: { createdAt: 'desc' },
         include: {
           seller: {
             select: {
               id: true,
               name: true,
-              rating: true
+              rating: true,
             }
           },
-          category: true
+          category: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
         }
       }),
       prisma.product.count({ where })
-    ])
+    ]);
 
     return NextResponse.json({
       products,
       pagination: {
-        page,
-        limit,
         total,
-        pages: Math.ceil(total / limit)
+        pages: Math.ceil(total / limit),
+        page,
+        limit
       }
-    })
+    });
 
   } catch (error) {
-    console.error('Error obteniendo productos:', error)
+    console.error('Error fetching products:', error);
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { error: 'Error fetching products' },
       { status: 500 }
-    )
+    );
   }
 }
 
-// POST - Crear un nuevo producto
+// POST: Create a new product
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const validatedData = createProductSchema.parse(body)
-
-    // TODO: Obtener usuario real de la sesión
-    // Por ahora usamos el primer usuario de la DB o uno demo
-    const demoUser = await prisma.user.findFirst()
-    if (!demoUser) {
-      return NextResponse.json({ error: 'No user found' }, { status: 400 })
+    // 1. Verify Auth
+    const token = request.cookies.get('auth-token')?.value;
+    if (!token) {
+      return NextResponse.json({ error: 'No estás autenticado' }, { status: 401 });
     }
 
-    const { tags, images, ...rest } = validatedData
+    let userId: string;
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      userId = decoded.userId;
+    } catch (e) {
+      return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 });
+    }
 
-    const newProduct = await prisma.product.create({
+    const body = await request.json();
+    const validatedData = productSchema.parse(body);
+
+    // Generate Slug
+    let slug = slugify(validatedData.title);
+    const existingSlug = await prisma.product.findUnique({ where: { slug } });
+    if (existingSlug) {
+      slug = `${slug}-${Date.now()}`;
+    }
+
+    // Connect categories
+    const otherCategoriesConnect = validatedData.otherCategoryIds?.map(id => ({ id })) || [];
+
+    const product = await prisma.product.create({
       data: {
-        ...rest,
-        images: images ? JSON.stringify(images) : null,
-        tags: tags ? JSON.stringify(tags) : null,
-        slug: validatedData.title.toLowerCase().replace(/ /g, '-') + '-' + Date.now(),
-        sellerId: demoUser.id,
-        status: 'ACTIVE'
+        title: validatedData.title,
+        description: validatedData.description,
+        price: validatedData.price,
+        condition: validatedData.condition,
+        stock: validatedData.stock,
+        images: JSON.stringify(validatedData.images),
+        thumbnail: validatedData.images[0],
+        slug,
+        sellerId: userId,
+        categoryId: validatedData.categoryId,
+        status: 'ACTIVE',
+        // Note: otherCategories removed due to SQLite limitation with implicit many-to-many
+        // Can be added via update operation if needed
       }
-    })
+    });
 
-    return NextResponse.json({
-      message: 'Producto creado exitosamente',
-      product: newProduct
-    }, { status: 201 })
+    return NextResponse.json(product, { status: 201 });
 
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Datos inválidos', details: error.issues },
-        { status: 400 }
-      )
+      // Format Zod errors to a single string if possible or return detail
+      const errorMessage = error.issues.map(e => e.message).join(', ');
+      return NextResponse.json({ error: errorMessage, details: error.issues }, { status: 400 });
     }
-    console.error('Error creando producto:', error)
+
+    // Handle Prisma Unique Constraint specifically?
+    if (error.code === 'P2002') {
+      return NextResponse.json({ error: 'Ya existe un producto con este slug/nombre' }, { status: 409 });
+    }
+
+    console.error('Error creating product:', error);
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { error: 'Error interno al crear el producto' },
       { status: 500 }
-    )
+    );
   }
 }

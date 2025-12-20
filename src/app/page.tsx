@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { Header } from '@/components/marketplace/header'
 import { ProductCard } from '@/components/marketplace/product-card'
 import { AuctionCard, Auction } from '@/components/marketplace/auction-card'
@@ -5,7 +6,6 @@ import { CategoryGrid } from '@/components/marketplace/category-menu'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { MOCK_PRODUCTS, MOCK_CATEGORIES } from '@/lib/mock-data'
 import {
   Star,
   TrendingUp,
@@ -14,8 +14,10 @@ import {
   ArrowRight,
   Zap,
   Shield,
-  Gavel
+  Gavel,
+  Package
 } from 'lucide-react'
+import { prisma } from '@/lib/prisma'
 
 // Mock Data for Auctions (since it wasn't in mock-data.ts)
 const SAMPLE_AUCTIONS: Auction[] = [
@@ -59,10 +61,61 @@ const SAMPLE_AUCTIONS: Auction[] = [
   }
 ]
 
-export default function Home() {
+export default async function Home() {
   // Server Component Logic - Data Fetching
-  const products = MOCK_PRODUCTS.slice(0, 4) // Get top 4 products
-  const categoriesList = MOCK_CATEGORIES
+  const [productsData, categoriesList] = await Promise.all([
+    prisma.product.findMany({
+      where: { status: 'ACTIVE' },
+      orderBy: { createdAt: 'desc' },
+      take: 8,
+      include: {
+        seller: {
+          select: {
+            name: true,
+            rating: true
+          }
+        },
+        category: {
+          select: {
+            name: true
+          }
+        }
+      }
+    }),
+    prisma.category.findMany({
+      where: { parentId: null },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        icon: true,
+        children: {
+          take: 5,
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        },
+        _count: {
+          select: { products: true }
+        }
+      },
+      take: 8
+    })
+  ])
+
+  // Map Prisma products to ProductCard interface if needed
+  const products = productsData.map(p => ({
+    ...p,
+    originalPrice: p.originalPrice || undefined,
+    images: p.images || undefined,
+    thumbnail: p.thumbnail || undefined,
+    createdAt: p.createdAt.toISOString(),
+    category: p.category.name // ProductCard expects string or {name: string}, keeping simple
+  }))
+
   const auctions = SAMPLE_AUCTIONS
 
   return (
@@ -71,19 +124,19 @@ export default function Home() {
 
       <main>
         {/* Hero Section */}
-        <section className="relative bg-gradient-to-br from-blue-700 via-indigo-600 to-purple-700 text-white py-24 overflow-hidden">
+        <section className="relative text-white py-24 overflow-hidden" style={{ background: 'linear-gradient(to bottom right, #003366, #004080)' }}>
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-10">
             <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white blur-3xl mix-blend-overlay"></div>
-            <div className="absolute top-1/2 right-0 w-64 h-64 rounded-full bg-purple-400 blur-3xl mix-blend-overlay"></div>
-            <div className="absolute bottom-0 left-1/3 w-80 h-80 rounded-full bg-blue-400 blur-3xl mix-blend-overlay"></div>
+            <div className="absolute top-1/2 right-0 w-64 h-64 rounded-full blur-3xl mix-blend-overlay" style={{ backgroundColor: '#00A896' }}></div>
+            <div className="absolute bottom-0 left-1/3 w-80 h-80 rounded-full blur-3xl mix-blend-overlay" style={{ backgroundColor: '#0066cc' }}></div>
           </div>
 
           <div className="container mx-auto px-4 relative z-10">
             <div className="max-w-4xl mx-auto text-center space-y-8 animate-in fade-in zoom-in duration-700 slide-in-from-bottom-4">
               <div className="space-y-4">
                 <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight drop-shadow-sm">
-                  Bienvenido a <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-white">HonduMarket</span>
+                  Bienvenido a <span className="text-naranja-400 drop-shadow-lg">HonduMarket</span>
                 </h1>
                 <p className="text-xl md:text-2xl text-blue-100 max-w-2xl mx-auto font-light leading-relaxed">
                   El marketplace más grande de Honduras. Compra, vende y participa en subastas de forma segura y rápida.
@@ -91,14 +144,31 @@ export default function Home() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-5 justify-center pt-4">
-                <Button size="lg" className="bg-white text-blue-700 hover:bg-blue-50 text-lg px-8 py-6 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105 font-bold">
-                  <ShoppingBag className="mr-2 h-6 w-6" />
-                  Comprar ahora
-                </Button>
-                <Button size="lg" variant="outline" className="border-2 border-white/80 text-white hover:bg-white/10 text-lg px-8 py-6 rounded-full hover:border-white transition-all font-semibold backdrop-blur-sm">
-                  <Gavel className="mr-2 h-6 w-6" />
-                  Ver subastas
-                </Button>
+                <Link href="/categorias">
+                  <Button
+                    size="lg"
+                    variant="primary"
+                    className="group text-lg px-8 py-6 rounded-full shadow-2xl hover:shadow-[0_20px_50px_rgba(255,127,0,0.6)] transition-all duration-300 hover:scale-110 font-bold relative overflow-hidden hover:-translate-y-1 active:scale-105"
+                    style={{ backgroundColor: '#FF7F00' }}
+                  >
+                    {/* Efecto de brillo al hover */}
+                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></span>
+                    <ShoppingBag className="mr-2 h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
+                    <span className="relative">Comprar ahora</span>
+                  </Button>
+                </Link>
+                <Link href="/categorias">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="group text-lg px-8 py-6 rounded-full transition-all duration-300 hover:scale-105 font-semibold border-2 border-[#003366] text-[#003366] hover:bg-[#003366] hover:text-white hover:border-[#008000] hover:shadow-[0_10px_40px_rgba(0,51,102,0.4)] relative overflow-hidden hover:-translate-y-1 active:scale-100 bg-white/90 backdrop-blur-sm"
+                  >
+                    {/* Efecto de brillo sutil */}
+                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-[#008000]/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></span>
+                    <Package className="mr-2 h-6 w-6 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
+                    <span className="relative">Explorar Categorías</span>
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>

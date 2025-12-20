@@ -1,6 +1,8 @@
 import { Metadata } from 'next'
-import { MOCK_PRODUCTS, MOCK_CATEGORIES } from '@/lib/mock-data'
 import { CategoryBrowser } from '@/components/marketplace/category-browser'
+import { prisma } from '@/lib/prisma'
+import { MOCK_CATEGORIES } from '@/lib/mock-data' // Keep for now if CategoryBrowser relies on it for fallback, or refactor later. 
+// Actually, CategoryBrowser expects categories prop. We should pass real categories.
 
 interface PageProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>
@@ -18,8 +20,6 @@ export async function generateMetadata(
     }
 }
 
-import { prisma } from '@/lib/prisma'
-
 export default async function SearchPage({
     searchParams,
 }: PageProps) {
@@ -28,6 +28,7 @@ export default async function SearchPage({
 
     const products = await prisma.product.findMany({
         where: {
+            status: 'ACTIVE',
             OR: [
                 { title: { contains: query } },
                 { description: { contains: query } },
@@ -35,28 +36,48 @@ export default async function SearchPage({
             ]
         },
         include: {
-            category: true,
-            seller: true
-            // we might need more includes depending on Product interface
-        }
+            category: {
+                select: { id: true, name: true, slug: true }
+            },
+            seller: {
+                select: { id: true, name: true, rating: true }
+            }
+        },
+        orderBy: { createdAt: 'desc' }
     })
+
+    // Fetch categories for filter sidebar
+    const categories = await prisma.category.findMany({
+        select: { id: true, name: true, slug: true, parentId: true, icon: true }
+    })
+
+    // Transform categories
+    const mappedCategories = categories.map(c => ({
+        ...c,
+        level: c.parentId ? 2 : 1,
+        parent: c.parentId ? { name: categories.find(p => p.id === c.parentId)?.name || '' } : undefined
+    }))
 
     // Create a dummy category context for the browser
     const searchCategory = {
         id: 'search',
-        name: `Resultados para "${query}"`
+        name: `Resultados para "${query}"`,
+        slug: 'search',
+        level: 1
     }
 
-    // transform Prisma product to expected Product interface if necessary
-    // Assuming Prisma schema matches or is close enough. 
-    // If not, we map it. 
-    // The previously used Product interface had category as {id, name} which is what include: {category: true} gives.
+    const mappedProducts = products.map(p => ({
+        ...p,
+        createdAt: p.createdAt.toISOString(),
+        updatedAt: p.updatedAt.toISOString(),
+        category: p.category.name
+    }))
 
     return (
         <CategoryBrowser
-            initialProducts={products as any} // Cast if types don't strictly align yet
-            category={searchCategory}
-            categories={MOCK_CATEGORIES} // Could also fetch categories from DB
+            initialProducts={mappedProducts as any}
+            category={searchCategory as any}
+            categories={mappedCategories as any}
             slugs={['search']}
         />
     )

@@ -15,6 +15,7 @@ import {
   Plus,
   Trash2,
   ArrowRight,
+  ArrowLeft,
   Package,
   Truck,
   Shield,
@@ -92,35 +93,42 @@ export default function CartPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Mi Carrito
-              </h1>
-              <p className="text-gray-600">
-                {itemCount} {itemCount === 1 ? 'producto' : 'productos'} en tu carrito
-              </p>
-            </div>
+          <div className="mb-8">
+            <Link href="/" className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-4">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver a la tienda
+            </Link>
 
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={refreshCart}
-                disabled={isLoading}
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                Actualizar
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleClearCart}
-                disabled={isLoading}
-                className="flex items-center gap-2 text-red-600 hover:text-red-700"
-              >
-                <Trash2 className="h-4 w-4" />
-                Limpiar carrito
-              </Button>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                  Mi Carrito
+                </h1>
+                <p className="text-gray-600">
+                  {itemCount} {itemCount === 1 ? 'producto' : 'productos'} en tu carrito
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={refreshCart}
+                  disabled={isLoading}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  Actualizar
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleClearCart}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Limpiar carrito
+                </Button>
+              </div>
             </div>
           </div>
 

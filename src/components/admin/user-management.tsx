@@ -9,18 +9,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Download, 
-  Eye, 
-  Ban, 
-  CheckCircle, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Download,
+  Eye,
+  Ban,
+  CheckCircle,
   XCircle,
   MoreHorizontal,
   UserCheck,
   UserX,
+  User,
   Mail,
   Calendar,
   Shield,
@@ -67,10 +68,10 @@ export function UserManagement({ users, onUserUpdate, onUserCreate }: UserManage
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase())
+      user.email.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesRole = !roleFilter || user.role === roleFilter
     const matchesStatus = !statusFilter || user.status === statusFilter
-    
+
     return matchesSearch && matchesRole && matchesStatus
   })
 
@@ -80,7 +81,7 @@ export function UserManagement({ users, onUserUpdate, onUserCreate }: UserManage
       INACTIVE: 'bg-gray-100 text-gray-800',
       BANNED: 'bg-red-100 text-red-800'
     }
-    
+
     return (
       <Badge className={variants[status] || 'bg-gray-100 text-gray-800'}>
         {status}
@@ -94,7 +95,7 @@ export function UserManagement({ users, onUserUpdate, onUserCreate }: UserManage
       USER: 'bg-blue-100 text-blue-800',
       MODERATOR: 'bg-yellow-100 text-yellow-800'
     }
-    
+
     return (
       <Badge className={variants[role] || 'bg-gray-100 text-gray-800'}>
         {role}
@@ -140,25 +141,25 @@ export function UserManagement({ users, onUserUpdate, onUserCreate }: UserManage
               className="pl-10 w-full sm:w-64"
             />
           </div>
-          
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
+
+          <Select value={roleFilter || 'ALL'} onValueChange={(value) => setRoleFilter(value === 'ALL' ? '' : value)}>
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Rol" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos los roles</SelectItem>
+              <SelectItem value="ALL">Todos los roles</SelectItem>
               <SelectItem value="USER">Usuario</SelectItem>
               <SelectItem value="ADMIN">Administrador</SelectItem>
               <SelectItem value="MODERATOR">Moderador</SelectItem>
             </SelectContent>
           </Select>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter || 'ALL'} onValueChange={(value) => setStatusFilter(value === 'ALL' ? '' : value)}>
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos los estados</SelectItem>
+              <SelectItem value="ALL">Todos los estados</SelectItem>
               <SelectItem value="ACTIVE">Activo</SelectItem>
               <SelectItem value="INACTIVE">Inactivo</SelectItem>
               <SelectItem value="BANNED">Bloqueado</SelectItem>
@@ -171,7 +172,7 @@ export function UserManagement({ users, onUserUpdate, onUserCreate }: UserManage
             <Download className="h-4 w-4 mr-2" />
             Exportar
           </Button>
-          
+
           <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
             <DialogTrigger asChild>
               <Button size="sm">
@@ -319,7 +320,7 @@ export function UserManagement({ users, onUserUpdate, onUserCreate }: UserManage
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      
+
                       {user.status === 'ACTIVE' ? (
                         <Button
                           variant="outline"
@@ -337,7 +338,7 @@ export function UserManagement({ users, onUserUpdate, onUserCreate }: UserManage
                           <CheckCircle className="h-4 w-4" />
                         </Button>
                       )}
-                      
+
                       <Select
                         value={user.role}
                         onValueChange={(role) => handleUpdateUserRole(user.id, role)}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 // POST - Crear una nueva categoría (admin)
 export async function POST(request: NextRequest) {
@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const { name, description, icon, parentId } = await request.json()
 
     // Validar que no exista una categoría con el mismo nombre
-    const existingCategory = await db.category.findFirst({
+    const existingCategory = await prisma.category.findFirst({
       where: {
         name: name.toLowerCase()
       }
@@ -20,9 +20,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const category = await db.category.create({
+    // Generate slug from name
+    const slug = name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove accents
+      .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
+      .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+
+    const category = await prisma.category.create({
       data: {
         name,
+        slug,
         description,
         icon,
         parentId: parentId || null
@@ -63,12 +72,12 @@ export async function GET(request: NextRequest) {
     const includeChildren = searchParams.get('includeChildren') === 'true'
     const parentId = searchParams.get('parentId')
     const hierarchical = searchParams.get('hierarchical') === 'true'
-    
+
     let categories
-    
+
     if (hierarchical) {
       // Get hierarchical structure (parent with children)
-      categories = await db.category.findMany({
+      categories = await prisma.category.findMany({
         where: {
           parentId: null // Only parent categories
         },
@@ -97,7 +106,7 @@ export async function GET(request: NextRequest) {
       })
     } else if (parentId !== undefined) {
       // Get subcategories of a specific parent
-      categories = await db.category.findMany({
+      categories = await prisma.category.findMany({
         where: {
           parentId: parentId === 'null' ? null : parentId
         },
@@ -132,7 +141,7 @@ export async function GET(request: NextRequest) {
       })
     } else {
       // Get all categories (flat list with relationships)
-      categories = await db.category.findMany({
+      categories = await prisma.category.findMany({
         include: {
           parent: {
             select: {
@@ -159,7 +168,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       categories,
       total: categories.length,
       hierarchical: hierarchical || includeChildren

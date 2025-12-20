@@ -173,9 +173,11 @@ export default function SubastasPage() {
                 <Gavel className="mr-2 h-5 w-5" />
                 Explorar Subastas
               </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-purple-600">
-                Crear Subasta
-              </Button>
+              <Link href="/crear-subasta">
+                <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-purple-600">
+                  Crear Subasta
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -251,7 +253,40 @@ export default function SubastasPage() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {auctions.map((auction) => (
-                <Card key={auction.id} {...auction} />
+                <Card key={auction.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span className="text-lg">{auction.title}</span>
+                      <Badge className={getStatusColor(auction.status)}>
+                        {getStatusText(auction.status)}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Precio actual</p>
+                        <p className="text-2xl font-bold text-purple-600">
+                          {formatPrice(auction.currentPrice || auction.startingPrice)}
+                        </p>
+                      </div>
+                      {auction.endDate && (
+                        <div>
+                          <p className="text-sm text-gray-600">Tiempo restante</p>
+                          <p className="text-lg font-semibold">
+                            {getTimeRemaining(new Date(auction.endDate))}
+                          </p>
+                        </div>
+                      )}
+                      <Link href={`/subasta/${auction.id}`}>
+                        <Button className="w-full">
+                          <Gavel className="mr-2 h-4 w-4" />
+                          Ver subasta
+                        </Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </div>
@@ -266,7 +301,7 @@ export default function SubastasPage() {
                 No hay subastas activas en este momento.
                 ¡Sé el primero en crear una!
               </p>
-              <Link href="/vender" className="text-blue-600 hover:text-blue-700 transition-colors">
+              <Link href="/crear-subasta" className="text-blue-600 hover:text-blue-700 transition-colors">
                 <Button size="lg" className="flex items-center gap-2">
                   <Plus className="h-4 w-4" />
                   Crear Subasta

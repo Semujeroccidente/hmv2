@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where = {}
-    
+
     if (search) {
       where['OR'] = [
         { title: { contains: search, mode: 'insensitive' } },
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     // Get products with pagination and sorting
     const [products, totalCount] = await Promise.all([
-      db.product.findMany({
+      prisma.product.findMany({
         where,
         skip,
         take: limit,
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
           }
         }
       }),
-      db.product.count({ where })
+      prisma.product.count({ where })
     ])
 
     // Transform data for frontend
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     } = await request.json()
 
     // Create new product
-    const product = await db.product.create({
+    const product = await prisma.product.create({
       data: {
         title,
         description,
