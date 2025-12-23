@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin, handleAdminError } from '@/lib/auth-utils'
+import { requireAdmin, handleAdminError } from '@/lib/admin-middleware'
+import { createAuditLog } from '@/lib/audit-log'
 
 export async function GET(request: NextRequest) {
   try {
@@ -110,7 +111,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Verify admin role
-    await requireAdmin(request)
+    const admin = await requireAdmin(request)
 
     const {
       title,
@@ -152,18 +153,18 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Audit log
+    await createAuditLog({
+      userId: admin.userId,
+      action: 'CREATE',
+      entity: 'Product',
+      entityId: product.id,
+      details: { title, price, sellerId },
+      request
+    })
+
     return NextResponse.json(product, { status: 201 })
   } catch (error: any) {
-    // Handle admin auth errors
-    const authError = handleAdminError(error)
-    if (authError.status !== 500) {
-      return NextResponse.json({ error: authError.error }, { status: authError.status })
-    }
-
-    console.error('Error creating product:', error)
-    return NextResponse.json(
-      { error: 'Error creating product' },
-      { status: 500 }
-    )
+    return handleAdminError(error)
   }
 }

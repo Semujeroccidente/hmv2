@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin, handleAdminError } from '@/lib/auth-utils'
+import { requireAdmin, handleAdminError } from '@/lib/admin-middleware'
 
 export async function GET(request: NextRequest) {
   try {

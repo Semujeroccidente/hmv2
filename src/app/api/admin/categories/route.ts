@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin, handleAdminError } from '@/lib/auth-utils'
+import { requireAdmin, handleAdminError } from '@/lib/admin-middleware'
 
 // POST - Crear una nueva categoría (admin)
 export async function POST(request: NextRequest) {
   try {
     // Verify admin role
     await requireAdmin(request)
-    
+
     const { name, description, icon, parentId } = await request.json()
 
     // Validar que no exista una categoría con el mismo nombre
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
   try {
     // Verify admin role
     await requireAdmin(request)
-    
+
     const { searchParams } = new URL(request.url)
     const includeChildren = searchParams.get('includeChildren') === 'true'
     const parentId = searchParams.get('parentId')

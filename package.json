@@ -16,6 +16,7 @@
     "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
+    "create-admin": "node scripts/create-admin.js",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",

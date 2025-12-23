@@ -1,15 +1,14 @@
 {
   "name": "auction-service",
   "version": "1.0.0",
-  "description": "Servicio de WebSockets para subastas en tiempo real",
+  "description": "WebSocket service for real-time auctions",
   "main": "index.ts",
   "scripts": {
     "dev": "bun --hot index.ts",
     "start": "bun index.ts"
   },
   "dependencies": {
-    "socket.io": "^4.7.5",
-    "prisma": "^6.11.1",
-    "z-ai-web-dev-sdk": "^0.0.10"
+    "@prisma/client": "^5.0.0",
+    "socket.io": "^4.7.5"
   }
 }

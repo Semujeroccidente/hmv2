@@ -1,11 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
     Select,
@@ -14,10 +13,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { ArrowLeft, Upload, Loader2, Store, Plus, X } from 'lucide-react'
+import { ArrowLeft, Loader2, Store } from 'lucide-react'
 import { CategorySelector } from '@/components/admin/category-selector'
+import { ImageUpload } from '@/components/ui/image-upload'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -32,15 +32,13 @@ const formSchema = z.object({
     stock: z.coerce.number().int().min(1, 'El stock debe ser al menos 1').max(10000, 'Stock muy alto'),
     categoryId: z.string().min(1, 'La categoría principal es requerida'),
     otherCategoryIds: z.array(z.string()).optional(),
-    imageUrl: z.string().url('Debe ser una URL válida').optional().or(z.literal('')),
+    images: z.array(z.string().url()).min(1, 'Debes agregar al menos una imagen').max(MAX_IMAGES, `Máximo ${MAX_IMAGES} imágenes`),
 })
 
 type FormValues = z.output<typeof formSchema>
 
 export default function VenderPage() {
     const router = useRouter()
-    const [images, setImages] = useState<string[]>([])
-    const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set())
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const form = useForm<FormValues>({
@@ -51,53 +49,12 @@ export default function VenderPage() {
             price: 0,
             stock: 1,
             condition: "NEW" as const,
-            imageUrl: "",
             categoryId: "",
-            otherCategoryIds: []
+            otherCategoryIds: [],
+            images: []
         },
-        mode: 'onChange' // Validación en tiempo real
+        mode: 'onChange'
     })
-
-    // Verificar si hay imágenes para habilitar submit
-    const canSubmit = images.length > 0
-
-    const handleAddImage = () => {
-        if (images.length >= MAX_IMAGES) {
-            toast.error(`Máximo ${MAX_IMAGES} imágenes permitidas`)
-            return
-        }
-
-        const url = form.getValues('imageUrl')
-
-        // Validación básica de URL
-        if (!url || url.trim().length < 10 || !url.includes('.')) {
-            form.setError('imageUrl', {
-                type: 'manual',
-                message: 'Ingresa una URL válida de imagen'
-            })
-            return
-        }
-
-        // Evitar duplicados
-        if (images.includes(url.trim())) {
-            toast.error("Esta imagen ya fue agregada")
-            return
-        }
-
-        setImages([...images, url.trim()])
-        form.setValue('imageUrl', '')
-        form.clearErrors('imageUrl')
-    }
-
-    const handleRemoveImage = (index: number) => {
-        setImages(images.filter((_, i) => i !== index))
-        // Remover del set de imágenes cargadas
-        setLoadedImages(prev => {
-            const newSet = new Set(prev)
-            newSet.delete(index)
-            return newSet
-        })
-    }
 
     const onInvalid = (errors: any) => {
         console.log("Form Validation Errors:", errors)
@@ -108,22 +65,11 @@ export default function VenderPage() {
     }
 
     async function onSubmit(values: FormValues) {
-        if (images.length === 0) {
-            toast.error("Debes agregar al menos una imagen")
-            return
-        }
-
-        if (images.length > MAX_IMAGES) {
-            toast.error(`Máximo ${MAX_IMAGES} imágenes permitidas`)
-            return
-        }
-
         setIsSubmitting(true)
 
         try {
             const payload = {
                 ...values,
-                images: images,
                 attributes: {},
             }
 
@@ -166,11 +112,6 @@ export default function VenderPage() {
         }
     }
 
-    // Limpiar imágenes cargadas cuando se modifica el array
-    useEffect(() => {
-        setLoadedImages(new Set())
-    }, [images])
-
     return (
         <div className="min-h-screen bg-gray-50 py-8">
             <div className="container mx-auto px-4 max-w-3xl">
@@ -200,133 +141,28 @@ export default function VenderPage() {
                                 className="space-y-6"
                             >
                                 {/* Sección de imágenes */}
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center">
-                                        <Label>Imágenes del Producto ({images.length}/{MAX_IMAGES})</Label>
-                                        {images.length > 0 && (
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setImages([])}
-                                            >
-                                                <X className="h-3 w-3 mr-1" /> Limpiar todas
-                                            </Button>
-                                        )}
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        {/* Opción 1: Subir archivo local */}
-                                        <div className="flex gap-2">
-                                            <Input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={(e) => {
-                                                    const file = e.target.files?.[0]
-                                                    if (file) {
-                                                        const reader = new FileReader()
-                                                        reader.onloadend = () => {
-                                                            const base64 = reader.result as string
-                                                            if (images.length < MAX_IMAGES) {
-                                                                setImages([...images, base64])
-                                                                toast.success('Imagen agregada')
-                                                                e.target.value = '' // Reset input
-                                                            } else {
-                                                                toast.error(`Máximo ${MAX_IMAGES} imágenes`)
-                                                            }
-                                                        }
-                                                        reader.readAsDataURL(file)
-                                                    }
-                                                }}
-                                                className="flex-1"
-                                                disabled={images.length >= MAX_IMAGES}
-                                            />
-                                        </div>
-
-                                        {/* Opción 2: URL de imagen */}
-                                        <div className="flex gap-2">
-                                            <FormField
-                                                control={form.control}
-                                                name="imageUrl"
-                                                render={({ field }) => (
-                                                    <FormItem className="flex-1">
-                                                        <FormControl>
-                                                            <Input
-                                                                placeholder="O pega una URL: https://ejemplo.com/imagen.jpg"
-                                                                {...field}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.preventDefault()
-                                                                        handleAddImage()
-                                                                    }
-                                                                }}
-                                                            />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <Button
-                                                type="button"
-                                                onClick={handleAddImage}
-                                                variant="secondary"
-                                                disabled={!form.watch('imageUrl') || images.length >= MAX_IMAGES}
-                                            >
-                                                <Plus className="h-4 w-4 mr-1" />
-                                                {images.length >= MAX_IMAGES ? 'Límite' : 'Agregar'}
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    <FormDescription>
-                                        Agrega URLs de imágenes (máximo {MAX_IMAGES}). Presiona Enter después de pegar una URL.
-                                    </FormDescription>
-
-                                    {/* Grid de imágenes */}
-                                    {images.length > 0 && (
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
-                                            {images.map((img, idx) => (
-                                                <div key={idx} className="relative aspect-square rounded-lg border overflow-hidden group bg-gray-100">
-                                                    {!loadedImages.has(idx) && (
-                                                        <div className="absolute inset-0 flex items-center justify-center">
-                                                            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                                                        </div>
-                                                    )}
-                                                    <img
-                                                        src={img}
-                                                        alt={`Preview ${idx + 1}`}
-                                                        className={`object-cover w-full h-full transition-opacity ${!loadedImages.has(idx) ? 'opacity-0' : 'opacity-100'
-                                                            }`}
-                                                        onLoad={() => setLoadedImages(prev => new Set(prev).add(idx))}
-                                                        onError={() => {
-                                                            toast.error(`Error al cargar imagen ${idx + 1}`)
-                                                            handleRemoveImage(idx)
-                                                        }}
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleRemoveImage(idx)}
-                                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                                                        aria-label="Eliminar imagen"
-                                                    >
-                                                        <X className="h-3 w-3" />
-                                                    </button>
-                                                    <div className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                                                        {idx + 1}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                <FormField
+                                    control={form.control}
+                                    name="images"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Imágenes del Producto *</FormLabel>
+                                            <FormControl>
+                                                <ImageUpload
+                                                    value={field.value}
+                                                    onChange={field.onChange}
+                                                    maxImages={MAX_IMAGES}
+                                                    maxSizeMB={5}
+                                                    disabled={isSubmitting}
+                                                />
+                                            </FormControl>
+                                            <FormDescription>
+                                                Arrastra o selecciona hasta {MAX_IMAGES} imágenes. La primera será la imagen principal.
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
                                     )}
-
-                                    {images.length === 0 && (
-                                        <div className="text-center py-8 border-2 border-dashed rounded-lg">
-                                            <Upload className="h-12 w-12 mx-auto text-gray-300 mb-2" />
-                                            <p className="text-sm text-gray-500">Agrega imágenes de tu producto</p>
-                                            <p className="text-xs text-gray-400 mt-1">Mínimo 1 imagen, máximo {MAX_IMAGES}</p>
-                                        </div>
-                                    )}
-                                </div>
+                                />
 
                                 {/* Información básica */}
                                 <FormField
@@ -493,7 +329,7 @@ export default function VenderPage() {
                                     </Link>
                                     <Button
                                         type="submit"
-                                        disabled={isSubmitting || !canSubmit}
+                                        disabled={isSubmitting}
                                     >
                                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                         {isSubmitting ? 'Publicando...' : 'Publicar Anuncio'}

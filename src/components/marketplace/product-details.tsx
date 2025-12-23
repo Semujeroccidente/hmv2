@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useCart } from '@/hooks/use-cart'
+import { useFavorites } from '@/hooks/use-favorites'
 import {
     Heart,
     ShoppingCart,
@@ -46,13 +47,21 @@ interface ProductDetailsProps {
 export function ProductDetails({ product, relatedProducts = [] }: ProductDetailsProps) {
     const [selectedImage, setSelectedImage] = useState(0)
     const [isAddingToCart, setIsAddingToCart] = useState(false)
+    const [isTogglingFavorite, setIsTogglingFavorite] = useState(false)
     const { addToCart } = useCart()
+    const { isFavorite, toggleFavorite } = useFavorites()
 
     const handleAddToCart = async () => {
         if (!product) return
         setIsAddingToCart(true)
         await addToCart(product.id, 1)
         setIsAddingToCart(false)
+    }
+
+    const handleToggleFavorite = async () => {
+        setIsTogglingFavorite(true)
+        await toggleFavorite(product.id)
+        setIsTogglingFavorite(false)
     }
 
     const formatPrice = (amount: number) => {
@@ -122,14 +131,18 @@ export function ProductDetails({ product, relatedProducts = [] }: ProductDetails
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"
-                                            onClick={() => {
-                                                // TODO: Implement actual favorite logic
-                                                // toast.success('Añadido a favoritos')
-                                                alert('Añadido a favoritos (Simulado)')
-                                            }}
+                                            className={`rounded-full transition-all duration-200 ${isFavorite(product.id)
+                                                    ? 'bg-red-50 text-red-500 hover:bg-red-100'
+                                                    : 'hover:bg-red-50 hover:text-red-500'
+                                                }`}
+                                            onClick={handleToggleFavorite}
+                                            disabled={isTogglingFavorite}
                                         >
-                                            <Heart className="h-5 w-5" />
+                                            {isTogglingFavorite ? (
+                                                <div className="h-5 w-5 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                                            ) : (
+                                                <Heart className={`h-5 w-5 transition-all duration-200 ${isFavorite(product.id) ? 'fill-current' : ''}`} />
+                                            )}
                                         </Button>
                                         <Button variant="ghost" size="icon" className="rounded-full">
                                             <Share2 className="h-5 w-5" />

@@ -4,49 +4,34 @@ const bcrypt = require('bcryptjs')
 const prisma = new PrismaClient()
 
 async function createAdmin() {
-    try {
-        // Hash de la contraseña
-        const hashedPassword = await bcrypt.hash('admin1234', 10)
+    console.log('🔐 Creando usuario administrador...\n')
 
-        // Crear usuario admin
-        const admin = await prisma.user.create({
-            data: {
-                email: 'admin@gmail.com',
-                password: hashedPassword,
+    try {
+        const adminPassword = await bcrypt.hash('admin123', 12)
+
+        const admin = await prisma.user.upsert({
+            where: { email: 'admin@hondumarket.com' },
+            update: {
+                password: adminPassword,
+                role: 'ADMIN'
+            },
+            create: {
                 name: 'Administrador',
+                email: 'admin@hondumarket.com',
+                password: adminPassword,
                 role: 'ADMIN',
-                status: 'ACTIVE'
+                rating: 5.0,
+                bio: 'Administrador del sistema HonduMarket'
             }
         })
 
-        console.log('✅ Usuario administrador creado exitosamente:')
-        console.log('📧 Email:', admin.email)
-        console.log('👤 Nombre:', admin.name)
-        console.log('🔑 Rol:', admin.role)
-        console.log('🆔 ID:', admin.id)
-        console.log('\n🔐 Credenciales de acceso:')
-        console.log('Email: admin@gmail.com')
-        console.log('Contraseña: admin1234')
-
+        console.log('✅ Usuario administrador creado exitosamente!\n')
+        console.log('📧 Email: admin@hondumarket.com')
+        console.log('🔑 Contraseña: admin123\n')
+        console.log('Puedes iniciar sesión en: http://localhost:3000/login\n')
     } catch (error) {
-        if (error.code === 'P2002') {
-            console.log('⚠️  El usuario admin@gmail.com ya existe en la base de datos')
-
-            // Actualizar el usuario existente para asegurarnos que sea ADMIN
-            const updated = await prisma.user.update({
-                where: { email: 'admin@gmail.com' },
-                data: {
-                    role: 'ADMIN',
-                    status: 'ACTIVE',
-                    password: await bcrypt.hash('admin1234', 10)
-                }
-            })
-
-            console.log('✅ Usuario actualizado a ADMIN exitosamente')
-            console.log('🆔 ID:', updated.id)
-        } else {
-            console.error('❌ Error al crear usuario admin:', error)
-        }
+        console.error('❌ Error al crear administrador:', error)
+        process.exit(1)
     } finally {
         await prisma.$disconnect()
     }

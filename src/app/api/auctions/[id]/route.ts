@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, handleAuthError } from '@/lib/auth-middleware'
+import { processProxyBid } from '@/lib/proxy-bidding'
+import { checkTimeExtension } from '@/lib/time-extension'
 
 // MOCK DATA para coincidir con el Homepage
 const MOCK_AUCTIONS: Record<string, any> = {
@@ -113,30 +115,30 @@ export async function GET(
   }
 }
 
-// POST - Hacer una puja (Simulado para Mock, Real para DB)
+// POST - Hacer una puja con validaciones completas
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    const { id: auctionId } = await params
     const body = await request.json()
-    const { amount } = body
+    const { amount, maxAmount } = body // Agregar maxAmount para proxy bidding
 
-    if (MOCK_AUCTIONS[id]) {
-      // Validate bid amount
-      if (!amount || amount <= MOCK_AUCTIONS[id].currentPrice) {
+    // Mock data handling (para desarrollo)
+    if (MOCK_AUCTIONS[auctionId]) {
+      if (!amount || amount <= MOCK_AUCTIONS[auctionId].currentPrice) {
         return NextResponse.json(
-          { error: `La puja debe ser mayor a ${MOCK_AUCTIONS[id].currentPrice}` },
+          { error: `La puja debe ser mayor a L. ${MOCK_AUCTIONS[auctionId].currentPrice}` },
           { status: 400 }
         )
       }
 
-      // Update mock auction data
-      MOCK_AUCTIONS[id].currentPrice = amount
-      MOCK_AUCTIONS[id].bidCount = (MOCK_AUCTIONS[id].bidCount || 0) + 1
+      MOCK_AUCTIONS[auctionId].currentPrice = amount
+      MOCK_AUCTIONS[auctionId].bidCount = (MOCK_AUCTIONS[auctionId].bidCount || 0) + 1
 
       return NextResponse.json({
+        success: true,
         message: 'Puja realizada exitosamente',
         bid: {
           id: `mock-bid-${Date.now()}`,
@@ -144,26 +146,36 @@ export async function POST(
           userId: 'demo',
           createdAt: new Date().toISOString()
         },
-        auction: MOCK_AUCTIONS[id]
+        auction: MOCK_AUCTIONS[auctionId]
       })
     }
 
-    // Lógica real para DB
-    // TODO: Get user from session/auth
-    // For development, use first user as fallback
-    let userId = request.headers.get('x-user-id')
+    // Autenticación (intentar obtener usuario autenticado)
+    const authResult = await requireAuth(request)
+    let userId: string
 
-    if (!userId) {
+    if (authResult.success && authResult.user) {
+      userId = authResult.user.id
+    } else {
+      // Fallback para desarrollo: usar primer usuario activo
       const firstUser = await prisma.user.findFirst({ where: { status: 'ACTIVE' } })
       if (!firstUser) {
-        return NextResponse.json({ error: 'No hay usuarios disponibles' }, { status: 400 })
+        return NextResponse.json({ error: 'Debes iniciar sesión para pujar' }, { status: 401 })
       }
       userId = firstUser.id
     }
 
+    // 1. Obtener subasta con producto y pujas
     const auction = await prisma.auction.findUnique({
-      where: { id },
+      where: { id: auctionId },
       include: {
+        product: {
+          include: {
+            seller: {
+              select: { id: true, name: true }
+            }
+          }
+        },
         bids: {
           orderBy: { amount: 'desc' },
           take: 1
@@ -178,38 +190,123 @@ export async function POST(
       )
     }
 
-    // Validate bid
-    const currentHighestBid = auction.bids[0]?.amount || auction.startingPrice
-    if (amount <= currentHighestBid) {
+    // 2. Validar que la subasta está activa
+    if (auction.status !== 'ACTIVE') {
       return NextResponse.json(
-        { error: `La puja debe ser mayor a ${currentHighestBid}` },
+        { error: 'La subasta ya ha terminado' },
         { status: 400 }
       )
     }
 
-    // Create bid
-    const bid = await prisma.bid.create({
-      data: {
-        amount,
-        auctionId: id,
-        userId: userId
-      }
+    // 3. Validar que no ha expirado
+    if (new Date(auction.endDate) < new Date()) {
+      return NextResponse.json(
+        { error: 'La subasta ha expirado' },
+        { status: 400 }
+      )
+    }
+
+    // 4. Validar que el usuario no es el vendedor
+    if (auction.product.sellerId === userId) {
+      return NextResponse.json(
+        { error: 'No puedes pujar en tu propia subasta' },
+        { status: 403 }
+      )
+    }
+
+    // 5. Validar monto mínimo
+    const currentHighest = auction.bids[0]?.amount || auction.startingPrice
+    const minBid = currentHighest + (auction.bidIncrement || 50)
+
+    if (amount < minBid) {
+      return NextResponse.json({
+        error: `La puja mínima es L. ${minBid.toFixed(2)}`,
+        minBid,
+        currentPrice: currentHighest
+      }, { status: 400 })
+    }
+
+    // 6. Crear puja y actualizar subasta en transacción
+    const isProxyBid = maxAmount && maxAmount > amount
+
+    const result = await prisma.$transaction(async (tx) => {
+      const bid = await tx.bid.create({
+        data: {
+          auctionId,
+          userId,
+          amount,
+          maxAmount: isProxyBid ? maxAmount : null,
+          isProxy: isProxyBid || false
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true
+            }
+          }
+        }
+      })
+
+      await tx.auction.update({
+        where: { id: auctionId },
+        data: {
+          currentPrice: amount,
+          bidCount: { increment: 1 },
+          lastBidder: userId,
+          lastBidTime: new Date(),
+          hasProxyBids: isProxyBid ? true : undefined
+        }
+      })
+
+      return bid
     })
 
-    // Update auction current price
-    await prisma.auction.update({
-      where: { id },
-      data: { currentPrice: amount }
-    })
+    // 7. Verificar extensión de tiempo (anti-snipe)
+    const timeExtension = await checkTimeExtension(auctionId, new Date())
+
+    // 8. Procesar pujas automáticas (proxy bidding)
+    const proxyResult = await processProxyBid(
+      auctionId,
+      amount,
+      userId,
+      auction.bidIncrement || 50
+    )
 
     return NextResponse.json({
+      success: true,
       message: 'Puja realizada exitosamente',
-      bid
+      bid: result,
+      auction: {
+        currentPrice: proxyResult.counterBidPlaced ? proxyResult.counterBidAmount! : amount,
+        bidCount: auction.bidCount + 1 + (proxyResult.counterBidPlaced ? 1 : 0)
+      },
+      proxyBid: isProxyBid ? {
+        enabled: true,
+        maxAmount,
+        message: `Puja automática configurada hasta L. ${maxAmount}`
+      } : undefined,
+      timeExtension: timeExtension.extended ? {
+        extended: true,
+        newEndDate: timeExtension.newEndDate,
+        extensionMinutes: timeExtension.extensionMinutes,
+        message: `Subasta extendida ${timeExtension.extensionMinutes} minutos`
+      } : undefined,
+      counterBid: proxyResult.counterBidPlaced ? {
+        placed: true,
+        amount: proxyResult.counterBidAmount,
+        message: 'Otra puja automática te superó'
+      } : undefined
     })
 
   } catch (error) {
     console.error('Error placing bid:', error)
-    return NextResponse.json({ error: 'Error al realizar la puja' }, { status: 500 })
+    return NextResponse.json({
+      error: 'Error al realizar la puja',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }
 

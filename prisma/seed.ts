@@ -116,6 +116,28 @@ async function main() {
     }
   })
 
+  // Crear usuario ADMIN
+  const adminPassword = await bcrypt.hash('admin123', 12)
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@hondumarket.com' },
+    update: { password: adminPassword },
+    create: {
+      name: 'Administrador',
+      email: 'admin@hondumarket.com',
+      password: adminPassword,
+      role: 'ADMIN',
+      rating: 5.0,
+      bio: 'Administrador del sistema HonduMarket'
+    }
+  })
+
+  console.log('✅ Usuarios creados:')
+  console.log('   - Vendedor: juan@ejemplo.com (password123)')
+  console.log('   - Vendedora: maria@ejemplo.com (password123)')
+  console.log('   - Comprador: carlos@ejemplo.com (password123)')
+  console.log('   - 🔐 ADMIN: admin@hondumarket.com (admin123)')
+  console.log('')
+
   // Crear productos de ejemplo
   // Use try-catch for products to avoid failing if they exist (since we use createMany which doesn't support upsert easily/natively for many)
   // Actually, better to check if products exist or just delete them and recreate?

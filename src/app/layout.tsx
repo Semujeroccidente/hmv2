@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { CartProvider } from "@/components/marketplace/cart-provider";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Footer } from "@/components/marketplace/footer";
 
 const geistSans = Geist({
@@ -48,12 +49,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <CartProvider>
-          {children}
-          <Toaster />
-        </CartProvider>
-        <Footer />
+        <ThemeProvider>
+          <CartProvider>
+            {children}
+            <Toaster />
+          </CartProvider>
+          <Footer />
+        </ThemeProvider>
       </body>
     </html>
   );
 }
+

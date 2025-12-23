@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/navigation-menu'
 import { CategoryMegaMenu } from './category-mega-menu'
 import { AuthModal } from '@/components/auth/auth-modal'
+import { MessageNotificationBadge } from '@/components/social/MessageNotificationBadge'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import {
   Search,
   ShoppingCart,
@@ -169,6 +171,9 @@ export function Header({
 
             {/* Acciones del usuario */}
             <div className="flex items-center space-x-3">
+              {/* Theme Toggle */}
+              <ThemeToggle />
+
               {/* Iconos de acción */}
               {currentUser ? (
                 <Link href="/favoritos">
@@ -189,6 +194,22 @@ export function Header({
                   onClick={() => setIsAuthModalOpen(true)}
                 >
                   <Heart className="h-5 w-5" />
+                </Button>
+              )}
+
+              {/* Mensajes - Badge con notificaciones en tiempo real */}
+              {currentUser ? (
+                <div className="text-white">
+                  <MessageNotificationBadge />
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="relative text-white hover:text-verde-300 hover:bg-azul-600"
+                  onClick={() => setIsAuthModalOpen(true)}
+                >
+                  <MessageSquare className="h-5 w-5" />
                 </Button>
               )}
 
@@ -330,29 +351,35 @@ export function Header({
         {/* Menú móvil */}
         {
           isMobileMenuOpen && (
-            <div className="lg:hidden border-t border-gray-200 bg-white">
+            <div className="lg:hidden border-t border-gray-200 bg-white dark:bg-card dark:border-border">
               <div className="container mx-auto px-4 py-4 space-y-3">
+                {/* Theme Toggle en móvil */}
+                <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-border">
+                  <span className="text-sm font-medium text-gray-700 dark:text-foreground">Tema</span>
+                  <ThemeToggle />
+                </div>
+
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Categorías</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-foreground mb-2">Categorías</p>
                   {categories.slice(0, 5).map((category) => (
-                    <Link key={category.id} href={`/categoria/${category.name.toLowerCase().replace(/\s+/g, '-')}`} className="block py-2 text-gray-700 hover:text-blue-600">
+                    <Link key={category.id} href={`/categoria/${category.name.toLowerCase().replace(/\s+/g, '-')}`} className="block py-2 text-gray-700 dark:text-foreground hover:text-blue-600 dark:hover:text-blue-400">
                       {category.icon && <span className="mr-2">{category.icon}</span>}
                       {category.name}
                     </Link>
                   ))}
                 </div>
-                <Link href="/subastas" className="block py-2 text-gray-700 hover:text-blue-600">
+                <Link href="/subastas" className="block py-2 text-gray-700 dark:text-foreground hover:text-blue-600 dark:hover:text-blue-400">
                   Subastas
                 </Link>
-                <Link href="/vender" className="block py-2 text-gray-700 hover:text-blue-600">
+                <Link href="/vender" className="block py-2 text-gray-700 dark:text-foreground hover:text-blue-600 dark:hover:text-blue-400">
                   Vender
                 </Link>
                 {!currentUser && (
                   <>
-                    <Link href="/login" className="block py-2 text-gray-700 hover:text-blue-600">
+                    <Link href="/login" className="block py-2 text-gray-700 dark:text-foreground hover:text-blue-600 dark:hover:text-blue-400">
                       Iniciar sesión
                     </Link>
-                    <Link href="/register" className="block py-2 text-gray-700 hover:text-blue-600">
+                    <Link href="/register" className="block py-2 text-gray-700 dark:text-foreground hover:text-blue-600 dark:hover:text-blue-400">
                       Registrarse
                     </Link>
                   </>

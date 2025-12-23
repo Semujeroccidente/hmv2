@@ -187,26 +187,59 @@ model Auction {
   startingPrice Float
   currentPrice  Float
   reservePrice  Float?
+  bidIncrement  Float     @default(50)
   
   endDate       DateTime
   status        AuctionStatus @default(ACTIVE)
+  
+  // Tracking de pujas
+  bidCount      Int       @default(0)
+  lastBidder    String?
+  lastBidTime   DateTime?
+  winnerId      String?
+  
+  // Proxy Bidding
+  hasProxyBids  Boolean   @default(false)
+  
+  // Time Extension (Anti-Snipe)
+  originalEndDate DateTime?
+  extensionMinutes Int     @default(5)
+  timesExtended   Int      @default(0)
+  maxExtensions   Int      @default(10)
+  
+  // Scheduled Auctions
+  startDate     DateTime?
+  autoStart     Boolean   @default(true)
+  
+  // Buy It Now
+  buyNowPrice   Float?
+  buyNowEnabled Boolean   @default(false)
+  buyNowUserId  String?
   
   bids          Bid[]
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  
+  @@index([status, endDate])
+  @@index([status, startDate])
 }
 
 // Pujas de subasta
 model Bid {
   id        String   @id @default(cuid())
   amount    Float
+  maxAmount Float?   // Puja máxima para proxy bidding
+  isProxy   Boolean  @default(false) // Indica si es puja automática
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   auctionId String
   auction   Auction  @relation(fields: [auctionId], references: [id])
   
   createdAt DateTime @default(now())
+  
+  @@index([auctionId, amount])
+  @@index([auctionId, isProxy])
 }
 
 // Pedidos
@@ -356,6 +389,7 @@ enum ProductStatus {
 }
 
 enum AuctionStatus {
+  SCHEDULED
   ACTIVE
   ENDED
   CANCELLED

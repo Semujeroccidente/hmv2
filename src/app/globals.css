@@ -45,6 +45,17 @@
 
 :root {
   --radius: 0.625rem;
+  
+  /* HonduMarket Brand Colors - Light Mode */
+  --hondumarket-azul: #003366;
+  --hondumarket-azul-light: #004080;
+  --hondumarket-azul-dark: #002244;
+  --hondumarket-naranja: #FF7F00;
+  --hondumarket-naranja-light: #FF9933;
+  --hondumarket-verde: #00A86B;
+  --hondumarket-verde-light: #00C97F;
+  
+  /* Base Colors */
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -79,6 +90,16 @@
 }
 
 .dark {
+  /* HonduMarket Brand Colors - Dark Mode (optimizados para contraste) */
+  --hondumarket-azul: #1a4d7a;
+  --hondumarket-azul-light: #2563a8;
+  --hondumarket-azul-dark: #0f3554;
+  --hondumarket-naranja: #ff9933;
+  --hondumarket-naranja-light: #ffad5c;
+  --hondumarket-verde: #00c97f;
+  --hondumarket-verde-light: #00e699;
+  
+  /* Base Colors - Dark Mode */
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -118,5 +139,6 @@
   }
   body {
     @apply bg-background text-foreground;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }

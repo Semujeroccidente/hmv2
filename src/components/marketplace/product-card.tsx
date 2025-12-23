@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,7 @@ import { Heart, ShoppingCart, Eye, Star, Plus, Check } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCart } from '@/hooks/use-cart'
+import { useFavorites } from '@/hooks/use-favorites'
 
 export interface Product {
   id: string
@@ -54,8 +55,9 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const [isInCart, setIsInCart] = useState(false)
-  const [isFavorite, setIsFavorite] = useState(false)
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false)
   const { addToCart } = useCart()
+  const { isFavorite, toggleFavorite } = useFavorites()
 
   // Handle images: try thumbnail, then parse images if string, or use array if array
   let mainImage = thumbnail
@@ -98,10 +100,10 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const getConditionColor = (condition: string) => {
     switch (condition) {
-      case 'NEW': return 'bg-green-100 text-green-800'
-      case 'USED': return 'bg-orange-100 text-orange-800'
-      case 'REFURBISHED': return 'bg-blue-100 text-blue-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'NEW': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+      case 'USED': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+      case 'REFURBISHED': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
     }
   }
 
@@ -121,13 +123,14 @@ export function ProductCard({ product }: ProductCardProps) {
     setIsAddingToCart(false)
   }
 
-  const handleToggleFavorite = () => {
-    setIsFavorite(!isFavorite)
-    // TODO: Implementar lógica de favoritos
+  const handleToggleFavorite = async () => {
+    setIsTogglingFavorite(true)
+    await toggleFavorite(id)
+    setIsTogglingFavorite(false)
   }
 
   return (
-    <Card className="group hover:shadow-lg transition-shadow duration-200">
+    <Card className="group hover:shadow-lg transition-shadow duration-200 dark:bg-card dark:border-border">
       <CardContent className="p-0">
         {/* Imagen del producto */}
         <div className="relative overflow-hidden rounded-t-lg">
@@ -164,9 +167,16 @@ export function ProductCard({ product }: ProductCardProps) {
           <Button
             size="sm"
             variant="ghost"
-            className="absolute top-2 right-2 bg-white/80 hover:bg-white text-gray-600 hover:text-red-500"
+            className={`absolute top-2 right-2 bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-800 transition-all duration-200 ${isFavorite(id) ? 'text-red-500' : 'text-gray-600 dark:text-gray-300 hover:text-red-500'
+              }`}
+            onClick={handleToggleFavorite}
+            disabled={isTogglingFavorite}
           >
-            <Heart className="h-4 w-4" />
+            {isTogglingFavorite ? (
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+            ) : (
+              <Heart className={`h-4 w-4 transition-all duration-200 ${isFavorite(id) ? 'fill-current scale-110' : ''}`} />
+            )}
           </Button>
         </div>
 
@@ -179,7 +189,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
 
           <Link href={`/producto/${id}`}>
-            <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 transition-colors">
+            <h3 className="font-semibold text-gray-900 dark:text-foreground mb-2 line-clamp-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
               {title}
             </h3>
           </Link>
@@ -188,23 +198,23 @@ export function ProductCard({ product }: ProductCardProps) {
           <div className="mb-3">
             {isAuction ? (
               <div>
-                <p className="text-sm text-gray-500">Puja actual</p>
-                <p className="text-xl font-bold text-purple-600">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Puja actual</p>
+                <p className="text-xl font-bold text-purple-600 dark:text-purple-400">
                   {formatPrice(currentBid || price)}
                 </p>
                 {auctionEndDate && (
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     Termina: {new Date(auctionEndDate).toLocaleDateString('es-HN')}
                   </p>
                 )}
               </div>
             ) : (
               <div>
-                <p className="text-xl font-bold text-gray-900">
+                <p className="text-xl font-bold text-gray-900 dark:text-foreground">
                   {formatPrice(price)}
                 </p>
                 {originalPrice && originalPrice > price && (
-                  <p className="text-sm text-gray-500 line-through">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 line-through">
                     {formatPrice(originalPrice)}
                   </p>
                 )}
@@ -213,7 +223,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
 
           {/* Información del vendedor */}
-          <div className="flex items-center justify-between mb-3 text-sm text-gray-600">
+          <div className="flex items-center justify-between mb-3 text-sm text-gray-600 dark:text-gray-400">
             <div className="flex items-center gap-1">
               <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
               <span>{seller?.rating?.toFixed(1) || '0.0'}</span>
@@ -260,9 +270,15 @@ export function ProductCard({ product }: ProductCardProps) {
               size="sm"
               variant="outline"
               onClick={handleToggleFavorite}
-              className={isFavorite ? 'text-red-500 border-red-500' : ''}
+              disabled={isTogglingFavorite}
+              className={`transition-all duration-200 ${isFavorite(id) ? 'text-red-500 border-red-500 bg-red-50 dark:bg-red-950' : ''
+                }`}
             >
-              <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+              {isTogglingFavorite ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+              ) : (
+                <Heart className={`h-4 w-4 transition-all duration-200 ${isFavorite(id) ? 'fill-current' : ''}`} />
+              )}
             </Button>
           </div>
         </div>

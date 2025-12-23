@@ -1,22 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAuth, handleAuthError } from '@/lib/auth-middleware'
+import { verifyAuth } from '@/lib/auth-middleware'
 
 export async function GET(request: NextRequest) {
   try {
+    // Autenticación real
+    const user = await verifyAuth(request)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'No estás autenticado' },
+        { status: 401 }
+      )
+    }
+
+    const currentUserId = user.userId
     const searchParams = request.nextUrl.searchParams
     const type = searchParams.get('type') // 'conversations'
     const conversationId = searchParams.get('conversationId') // userId in this context
-
-    // TODO: Obtener usuario real de la sesión
-    const currentUserId = (await prisma.user.findFirst())?.id || 'demo-user'
+    const search = searchParams.get('search') // Búsqueda
 
     if (type === 'conversations') {
-      // Obtener usuarios con los que he chateado
-      // En SQL raw seria: SELECT DISTINCT senderId, receiverId FROM Message WHERE ...
-      // Prisma no tiene distinct cross-columns facil.
-      // Aproximación: Buscar mensajes donde soy sender o receiver, luego extraer IDs unicos.
-
+      // Obtener conversaciones
       const messages = await prisma.message.findMany({
         where: {
           OR: [
@@ -35,6 +39,12 @@ export async function GET(request: NextRequest) {
 
       messages.forEach(msg => {
         const otherUser = msg.senderId === currentUserId ? msg.receiver : msg.sender
+
+        // Aplicar búsqueda si existe
+        if (search && !otherUser.name.toLowerCase().includes(search.toLowerCase())) {
+          return
+        }
+
         if (!conversationsMap.has(otherUser.id)) {
           conversationsMap.set(otherUser.id, {
             id: otherUser.id,
@@ -43,10 +53,10 @@ export async function GET(request: NextRequest) {
             unreadCount: (msg.receiverId === currentUserId && !msg.read) ? 1 : 0
           })
         } else {
-          // Sumar unread si es necesario, pero aqui solo tomamos el ultimo mensaje
-          // Si quisieramos count real, deberiamos procesar mas
+          // Actualizar contador de no leídos
+          const conv = conversationsMap.get(otherUser.id)
           if (msg.receiverId === currentUserId && !msg.read) {
-            conversationsMap.get(otherUser.id).unreadCount++
+            conv.unreadCount++
           }
         }
       })
@@ -57,7 +67,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (conversationId) {
-      // Messages with specific user
+      // Mensajes con usuario específico
       const messages = await prisma.message.findMany({
         where: {
           OR: [
@@ -69,6 +79,18 @@ export async function GET(request: NextRequest) {
         include: {
           sender: { select: { id: true, name: true, avatar: true, email: true } },
           receiver: { select: { id: true, name: true, avatar: true, email: true } }
+        }
+      })
+
+      // Auto-marcar como leídos los mensajes recibidos
+      await prisma.message.updateMany({
+        where: {
+          senderId: conversationId,
+          receiverId: currentUserId,
+          read: false
+        },
+        data: {
+          read: true
         }
       })
 
@@ -88,17 +110,53 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { receiverId, content } = body
+    // Autenticación real
+    const user = await verifyAuth(request)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'No estás autenticado' },
+        { status: 401 }
+      )
+    }
 
-    // TODO: Session User
-    const currentUserId = (await prisma.user.findFirst())?.id || 'demo-user'
+    const currentUserId = user.userId
+    const body = await request.json()
+    const { receiverId, content, productId } = body
+
+    // Validaciones
+    if (!receiverId || !content?.trim()) {
+      return NextResponse.json(
+        { error: 'Datos inválidos' },
+        { status: 400 }
+      )
+    }
+
+    // No permitir enviarse mensajes a sí mismo
+    if (receiverId === currentUserId) {
+      return NextResponse.json(
+        { error: 'No puedes enviarte mensajes a ti mismo' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar que el receptor existe
+    const receiver = await prisma.user.findUnique({
+      where: { id: receiverId }
+    })
+
+    if (!receiver) {
+      return NextResponse.json(
+        { error: 'Usuario no encontrado' },
+        { status: 404 }
+      )
+    }
 
     const newMessage = await prisma.message.create({
       data: {
-        content,
+        content: content.trim(),
         senderId: currentUserId,
         receiverId,
+        productId: productId || undefined,
         read: false
       },
       include: {
@@ -109,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       message: 'Mensaje enviado',
-      data: newMessage // Return the formatted message
+      data: newMessage
     })
 
   } catch (error) {
