@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+function getJWTSecret(): string {
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required')
+  }
+  return secret
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +19,17 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as any
+      let decoded: any
+    try {
+      decoded = jwt.verify(token, getJWTSecret())
+    } catch {
+      throw new Error('INVALID_TOKEN')
+    }
+    
+    // Validate token structure
+    if (!decoded.userId || !decoded.email || !decoded.role) {
+      throw new Error('INVALID_TOKEN')
+    }
 
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },

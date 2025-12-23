@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAdmin, handleAdminError } from '@/lib/auth-utils'
 
 // GET - Obtener una categoría específica
 export async function GET(
@@ -7,6 +8,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Verify admin role
+    await requireAdmin(request)
+    
     const category = await prisma.category.findUnique({
       where: { id: params.id },
       include: {
@@ -44,7 +48,7 @@ export async function GET(
     }
 
     return NextResponse.json(category)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching category:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
@@ -59,6 +63,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Verify admin role
+    await requireAdmin(request)
+    
     const { name, description, icon, parentId } = await request.json()
 
     // Validar que no exista otra categoría con el mismo nombre (excepto la actual)
@@ -104,7 +111,7 @@ export async function PUT(
       message: 'Categoría actualizada exitosamente',
       category: updatedCategory
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating category:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
@@ -164,7 +171,7 @@ export async function PATCH(
       message: 'Categoría actualizada exitosamente',
       category: updatedCategory
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating category:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
@@ -179,6 +186,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Verify admin role
+    await requireAdmin(request)
+    
     // Verificar si hay productos asociados
     const categoryWithProducts = await prisma.category.findUnique({
       where: { id: params.id },
@@ -224,7 +234,7 @@ export async function DELETE(
     return NextResponse.json({
       message: 'Categoría eliminada exitosamente'
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting category:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },

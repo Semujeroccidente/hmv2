@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma, OrderStatus } from '@prisma/client'
 import { requireAuth, handleAuthError } from '@/lib/auth-middleware'
 
 // GET - Obtener pedidos del usuario
@@ -21,8 +21,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (status) {
-      // Validar si el status es válido para el enum si es necesario
-      where.status = status as any
+      // Validate status is a valid OrderStatus enum value
+      if (Object.values(OrderStatus).includes(status as OrderStatus)) {
+        where.status = status as OrderStatus
+      }
     }
 
     const skip = (page - 1) * limit

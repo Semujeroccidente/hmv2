@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAdmin, handleAdminError } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
+    // Verify admin role
+    await requireAdmin(request)
+
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
     const sortBy = searchParams.get('sortBy') || 'createdAt'
@@ -38,13 +42,11 @@ export async function GET(request: NextRequest) {
           role: true,
           status: true,
           createdAt: true,
-          lastLogin: true,
           phone: true,
           _count: {
             select: {
               products: true,
               orders: true,
-              auctions: true,
               bids: true
             }
           }
@@ -64,7 +66,13 @@ export async function GET(request: NextRequest) {
         totalPages
       }
     })
-  } catch (error) {
+  } catch (error: any) {
+    // Handle admin auth errors
+    const authError = handleAdminError(error)
+    if (authError.status !== 500) {
+      return NextResponse.json({ error: authError.error }, { status: authError.status })
+    }
+
     console.error('Error fetching admin users:', error)
     return NextResponse.json(
       { error: 'Error fetching users' },
@@ -75,6 +83,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify admin role
+    await requireAdmin(request)
+
     const { name, email, role, status } = await request.json()
 
     // Check if user already exists
@@ -89,18 +100,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create new user
+    // Create new user (with temporary password)
     const user = await prisma.user.create({
       data: {
         name,
         email,
+        password: 'TEMP_PASSWORD_CHANGE_ME', // Admin should reset
         role: role || 'USER',
         status: status || 'ACTIVE'
       }
     })
 
     return NextResponse.json(user, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
+    // Handle admin auth errors
+    const authError = handleAdminError(error)
+    if (authError.status !== 500) {
+      return NextResponse.json({ error: authError.error }, { status: authError.status })
+    }
+
     console.error('Error creating user:', error)
     return NextResponse.json(
       { error: 'Error creating user' },

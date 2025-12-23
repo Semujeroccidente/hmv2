@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAdmin, handleAdminError } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
+    // Verify admin role
+    await requireAdmin(request)
+    
     // Get basic statistics
     const [
       totalUsers,
@@ -76,7 +80,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(stats)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching dashboard stats:', error)
     return NextResponse.json(
       { error: 'Error fetching dashboard statistics' },

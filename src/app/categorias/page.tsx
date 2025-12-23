@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { CategoryGrid } from "@/components/marketplace/category-menu"
 import { Metadata } from "next"
 import { BackToHomeButton } from "@/components/ui/back-to-home-button"
+import { CategoryWithRelations } from "@/types/prisma"
 
 export const metadata: Metadata = {
     title: "Todas las Categorías | HonduMarket",
@@ -25,14 +26,17 @@ export default async function CategoriesPage() {
         }
     })
 
-    // We need to map to the interface expected by CategoryGrid
-    // The prisma result has 'children' and '_count' which match
-    // We need to ensure types align.
+    // Convert Prisma types to component-compatible types (null -> undefined)
     const mappedCategories = categories.map(cat => ({
         ...cat,
-        // Ensure nulls are handled if interface is strict, but Prisma returns nulls.
-        // Parent is missing since we filtered parentId: null
-    }));
+        description: cat.description ?? undefined,
+        icon: cat.icon ?? undefined,
+        children: cat.children?.map(child => ({
+            ...child,
+            description: child.description ?? undefined,
+            icon: child.icon ?? undefined
+        }))
+    }))
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -51,8 +55,7 @@ export default async function CategoriesPage() {
                 </div>
 
                 {/* Grid de categorías */}
-                <CategoryGrid categories={mappedCategories as any} />
-                {/* 'as any' to avoid strict type mismatch on dates/Json fields if they differ slightly from Interface in component */}
+                <CategoryGrid categories={mappedCategories} />
             </div>
         </div>
     )

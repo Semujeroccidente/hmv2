@@ -3,8 +3,15 @@ import { prisma } from '@/lib/prisma';
 import { slugify } from '@/lib/utils';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
+import { getPaginationParams, getPaginationMeta, getSkip } from '@/lib/pagination';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+function getJWTSecret(): string {
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required')
+  }
+  return secret
+};
 
 const productSchema = z.object({
   title: z.string().min(3, 'El título debe tener al menos 3 caracteres'),
@@ -22,12 +29,13 @@ const productSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const page = parseInt(searchParams.get('page') || '1');
+
+    // Use pagination utilities
+    const { page, limit } = getPaginationParams(searchParams);
     const category = searchParams.get('category');
     const search = searchParams.get('search');
 
-    const skip = (page - 1) * limit;
+    const skip = getSkip(page, limit);
 
     const where: any = {
       status: 'ACTIVE',
@@ -78,12 +86,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       products,
-      pagination: {
-        total,
-        pages: Math.ceil(total / limit),
-        page,
-        limit
-      }
+      pagination: getPaginationMeta(page, limit, total)
     });
 
   } catch (error) {
@@ -106,7 +109,17 @@ export async function POST(request: NextRequest) {
 
     let userId: string;
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      let decoded: any
+      try {
+        decoded = jwt.verify(token, getJWTSecret())
+      } catch {
+        throw new Error('INVALID_TOKEN')
+      }
+
+      // Validate token structure
+      if (!decoded.userId || !decoded.email || !decoded.role) {
+        throw new Error('INVALID_TOKEN')
+      };
       userId = decoded.userId;
     } catch (e) {
       return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 });

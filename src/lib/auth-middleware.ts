@@ -1,12 +1,13 @@
 import { NextRequest } from 'next/server'
 import jwt from 'jsonwebtoken'
+import { JWTPayload, AuthUser } from '@/types/auth'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
-
-export interface AuthUser {
-    userId: string
-    email: string
-    role: string
+function getJWTSecret(): string {
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required')
+  }
+  return secret
 }
 
 /**
@@ -22,7 +23,12 @@ export async function verifyAuth(request: NextRequest): Promise<AuthUser | null>
             return null
         }
 
-        const decoded = jwt.verify(token, JWT_SECRET) as any
+        const decoded: any = jwt.verify(token, getJWTSecret())
+
+        // Validate structure
+        if (!decoded.userId || !decoded.email || !decoded.role) {
+            return null
+        }
 
         return {
             userId: decoded.userId,
@@ -44,20 +50,6 @@ export async function requireAuth(request: NextRequest): Promise<AuthUser> {
 
     if (!user) {
         throw new Error('UNAUTHORIZED')
-    }
-
-    return user
-}
-
-/**
- * Verifica que el usuario sea admin
- * Lanza un error si no está autenticado o no es admin
- */
-export async function requireAdmin(request: NextRequest): Promise<AuthUser> {
-    const user = await requireAuth(request)
-
-    if (user.role !== 'ADMIN') {
-        throw new Error('FORBIDDEN')
     }
 
     return user

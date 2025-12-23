@@ -44,7 +44,7 @@ export default function VenderPage() {
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const form = useForm<FormValues>({
-        resolver: zodResolver(formSchema) as any,
+        resolver: zodResolver(formSchema),
         defaultValues: {
             title: "",
             description: "",
@@ -101,7 +101,7 @@ export default function VenderPage() {
 
     const onInvalid = (errors: any) => {
         console.log("Form Validation Errors:", errors)
-        const firstError = Object.values(errors)[0] as any
+        const firstError = Object.values(errors)[0] as { message?: string }
         toast.error("Error en el formulario", {
             description: firstError?.message || "Revisa los campos marcados"
         })

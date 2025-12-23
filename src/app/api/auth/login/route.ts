@@ -9,7 +9,13 @@ const loginSchema = z.object({
   password: z.string().min(1, 'La contraseña es requerida')
 })
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+function getJWTSecret(): string {
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required')
+  }
+  return secret
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +51,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         role: user.role
       },
-      JWT_SECRET,
+      getJWTSecret(),
       { expiresIn: '7d' }
     )
 

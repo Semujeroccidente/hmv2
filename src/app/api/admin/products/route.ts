@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAdmin, handleAdminError } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
+    // Verify admin role
+    await requireAdmin(request)
+
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
     const sortBy = searchParams.get('sortBy') || 'createdAt'
@@ -53,7 +57,6 @@ export async function GET(request: NextRequest) {
           _count: {
             select: {
               favorites: true,
-              views: true,
               orderItems: true
             }
           }
@@ -73,7 +76,7 @@ export async function GET(request: NextRequest) {
       sellerEmail: product.seller.email,
       categoryName: product.category.name,
       createdAt: product.createdAt,
-      views: product._count.views || 0,
+      views: product.views || 0,
       favoritesCount: product._count.favorites || 0,
       salesCount: product._count.orderItems || 0
     }))
@@ -89,7 +92,13 @@ export async function GET(request: NextRequest) {
         totalPages
       }
     })
-  } catch (error) {
+  } catch (error: any) {
+    // Handle admin auth errors
+    const authError = handleAdminError(error)
+    if (authError.status !== 500) {
+      return NextResponse.json({ error: authError.error }, { status: authError.status })
+    }
+
     console.error('Error fetching admin products:', error)
     return NextResponse.json(
       { error: 'Error fetching products' },
@@ -100,6 +109,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify admin role
+    await requireAdmin(request)
+
     const {
       title,
       description,
@@ -141,7 +153,13 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(product, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
+    // Handle admin auth errors
+    const authError = handleAdminError(error)
+    if (authError.status !== 500) {
+      return NextResponse.json({ error: authError.error }, { status: authError.status })
+    }
+
     console.error('Error creating product:', error)
     return NextResponse.json(
       { error: 'Error creating product' },

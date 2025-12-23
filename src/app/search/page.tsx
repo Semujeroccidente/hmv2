@@ -2,6 +2,7 @@ import { Metadata } from 'next'
 import { CategoryBrowser } from '@/components/marketplace/category-browser'
 import { prisma } from '@/lib/prisma'
 import { MOCK_CATEGORIES } from '@/lib/mock-data' // Keep for now if CategoryBrowser relies on it for fallback, or refactor later. 
+import { ProductWithRelations, CategoryWithRelations } from '@/types/prisma'
 // Actually, CategoryBrowser expects categories prop. We should pass real categories.
 
 interface PageProps {
@@ -75,9 +76,9 @@ export default async function SearchPage({
 
     return (
         <CategoryBrowser
-            initialProducts={mappedProducts as any}
-            category={searchCategory as any}
-            categories={mappedCategories as any}
+            initialProducts={mappedProducts}
+            category={searchCategory}
+            categories={mappedCategories}
             slugs={['search']}
         />
     )

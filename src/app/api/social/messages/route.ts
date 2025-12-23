@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth, handleAuthError } from '@/lib/auth-middleware'
 
 export async function GET(request: NextRequest) {
   try {

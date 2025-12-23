@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAdmin, handleAdminError } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
+    // Verify admin role
+    await requireAdmin(request)
+    
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
     const sortBy = searchParams.get('sortBy') || 'createdAt'
@@ -97,7 +101,7 @@ export async function GET(request: NextRequest) {
         totalPages
       }
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching admin orders:', error)
     return NextResponse.json(
       { error: 'Error fetching orders' },
@@ -108,6 +112,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify admin role
+    await requireAdmin(request)
+    
     const {
       buyerId,
       orderItems,
@@ -170,7 +177,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(order, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating order:', error)
     return NextResponse.json(
       { error: 'Error creating order' },

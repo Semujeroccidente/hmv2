@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAdmin, handleAdminError } from '@/lib/auth-utils'
 
 // POST - Crear una nueva categoría (admin)
 export async function POST(request: NextRequest) {
   try {
+    // Verify admin role
+    await requireAdmin(request)
+    
     const { name, description, icon, parentId } = await request.json()
 
     // Validar que no exista una categoría con el mismo nombre
@@ -56,7 +60,7 @@ export async function POST(request: NextRequest) {
       message: 'Categoría creada exitosamente',
       category
     }, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating category:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
@@ -68,6 +72,9 @@ export async function POST(request: NextRequest) {
 // GET - Obtener todas las categorías (admin)
 export async function GET(request: NextRequest) {
   try {
+    // Verify admin role
+    await requireAdmin(request)
+    
     const { searchParams } = new URL(request.url)
     const includeChildren = searchParams.get('includeChildren') === 'true'
     const parentId = searchParams.get('parentId')
@@ -174,7 +181,7 @@ export async function GET(request: NextRequest) {
       hierarchical: hierarchical || includeChildren
     })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error obteniendo categorías:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },

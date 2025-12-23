@@ -2,6 +2,7 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { CategoryBrowser } from '@/components/marketplace/category-browser'
 import { prisma } from '@/lib/prisma'
+import { CategoryWithRelations } from '@/types/prisma'
 
 interface PageProps {
     params: Promise<{
@@ -115,7 +116,7 @@ export default async function CategoryPage({
         <CategoryBrowser
             initialProducts={products}
             category={category}
-            categories={allCategories as any} // Cast to match expected interface slightly if needed
+            categories={allCategories} // Cast to match expected interface slightly if needed
             slugs={slug}
         />
     )

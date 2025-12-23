@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin, handleAuthError } from '@/lib/auth-middleware'
+import { requireAdmin, handleAdminError } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
-    // Verificar que el usuario es admin
+    // Verify admin role
     await requireAdmin(request)
+
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
     const sortBy = searchParams.get('sortBy') || 'createdAt'
@@ -17,13 +18,13 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit
 
     // Build where clause
-    const where = {}
+    const where: any = {}
 
     if (search) {
       where['product'] = {
         OR: [
-          { title: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } }
+          { title: { contains: search } },
+          { description: { contains: search } }
         ]
       }
     }
@@ -104,18 +105,24 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error: any) {
-    const authError = handleAuthError(error)
+    // Handle admin auth errors
+    const authError = handleAdminError(error)
+    if (authError.status !== 500) {
+      return NextResponse.json({ error: authError.error }, { status: authError.status })
+    }
+
     return NextResponse.json(
-      { error: authError.error },
-      { status: authError.status }
+      { error: 'Error interno del servidor' },
+      { status: 500 }
     )
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Verificar que el usuario es admin
+    // Verify admin role
     await requireAdmin(request)
+
     const {
       startingPrice,
       reservePrice,
@@ -154,10 +161,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(auction, { status: 201 })
   } catch (error: any) {
-    const authError = handleAuthError(error)
+    // Handle admin auth errors
+    const authError = handleAdminError(error)
+    if (authError.status !== 500) {
+      return NextResponse.json({ error: authError.error }, { status: authError.status })
+    }
+
     return NextResponse.json(
-      { error: authError.error },
-      { status: authError.status }
+      { error: 'Error interno del servidor' },
+      { status: 500 }
     )
   }
 }
