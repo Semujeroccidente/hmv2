@@ -1,213 +1,169 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin, handleAdminError } from '@/lib/admin-middleware'
+import { requireAdmin } from '@/lib/admin-middleware'
 
-// GET - Obtener estadísticas del dashboard
 export async function GET(request: NextRequest) {
     try {
-        // Verificar que el usuario es admin
+        // Verificar que es admin
         await requireAdmin(request)
 
-        // Obtener parámetros de fecha (opcional)
-        const { searchParams } = new URL(request.url)
-        const period = searchParams.get('period') || '30' // días por defecto
+        // Obtener estadísticas generales
+        const [
+            totalUsers,
+            activeProducts,
+            todayOrders,
+            pendingReports,
+            activeAuctions
+        ] = await Promise.all([
+            prisma.user.count(),
+            prisma.product.count({ where: { status: 'ACTIVE' } }),
+            prisma.order.count({
+                where: {
+                    createdAt: {
+                        gte: new Date(new Date().setHours(0, 0, 0, 0))
+                    }
+                }
+            }),
+            prisma.report.count({ where: { status: 'PENDING' } }),
+            prisma.auction.count({ where: { status: 'ACTIVE' } })
+        ])
 
-        const daysAgo = parseInt(period)
-        const startDate = new Date()
-        startDate.setDate(startDate.getDate() - daysAgo)
-
-        // Estadísticas de usuarios
-        const totalUsers = await prisma.user.count()
-        const newUsers = await prisma.user.count({
+        // Calcular ingresos del mes
+        const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+        const monthOrders = await prisma.order.findMany({
             where: {
-                createdAt: {
-                    gte: startDate
-                }
-            }
-        })
-
-        const usersByRole = await prisma.user.groupBy({
-            by: ['role'],
-            _count: true
-        })
-
-        // Estadísticas de productos
-        const totalProducts = await prisma.product.count()
-        const activeProducts = await prisma.product.count({
-            where: {
-                stock: {
-                    gt: 0
-                }
-            }
-        })
-
-        const productsByCategory = await prisma.product.groupBy({
-            by: ['categoryId'],
-            _count: true,
-            orderBy: {
-                _count: {
-                    categoryId: 'desc'
-                }
+                createdAt: { gte: startOfMonth },
+                status: { in: ['CONFIRMED', 'SHIPPED', 'DELIVERED'] }
             },
-            take: 5
+            select: { total: true }
         })
+        const monthRevenue = monthOrders.reduce((sum, order) => sum + order.total, 0)
 
-        // Obtener nombres de categorías
-        const categoryIds = productsByCategory.map(p => p.categoryId)
-        const categories = await prisma.category.findMany({
-            where: {
-                id: {
-                    in: categoryIds
-                }
-            },
-            select: {
-                id: true,
-                name: true
-            }
+        // Datos para gráfico de ventas (últimos 30 días)
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+        // Datos de ejemplo para el gráfico (últimos 7 días)
+        const chartData = [
+            { date: 'Lun', sales: 5000, orders: 45 },
+            { date: 'Mar', sales: 7200, orders: 52 },
+            { date: 'Mié', sales: 6800, orders: 48 },
+            { date: 'Jue', sales: 8500, orders: 61 },
+            { date: 'Vie', sales: 9200, orders: 68 },
+            { date: 'Sáb', sales: 11000, orders: 82 },
+            { date: 'Dom', sales: 8900, orders: 71 }
+        ]
+
+        // Actividad reciente
+        const recentActivity = await Promise.all([
+            prisma.user.findMany({
+                take: 5,
+                orderBy: { createdAt: 'desc' },
+                select: { id: true, name: true, createdAt: true }
+            }),
+            prisma.product.findMany({
+                take: 5,
+                orderBy: { createdAt: 'desc' },
+                select: { id: true, title: true, createdAt: true }
+            }),
+            prisma.order.findMany({
+                take: 5,
+                orderBy: { createdAt: 'desc' },
+                select: { id: true, status: true, createdAt: true }
+            })
+        ])
+
+        const activities = [
+            ...recentActivity[0].map(user => ({
+                id: `user-${user.id}`,
+                type: 'user' as const,
+                action: 'Nuevo usuario registrado',
+                description: user.name,
+                timestamp: user.createdAt,
+                status: 'success' as const
+            })),
+            ...recentActivity[1].map(product => ({
+                id: `product-${product.id}`,
+                type: 'product' as const,
+                action: 'Producto publicado',
+                description: product.title,
+                timestamp: product.createdAt,
+                status: 'success' as const
+            })),
+            ...recentActivity[2].map(order => ({
+                id: `order-${order.id}`,
+                type: 'order' as const,
+                action: 'Nueva orden',
+                description: `Estado: ${order.status}`,
+                timestamp: order.createdAt,
+                status: order.status === 'DELIVERED' ? 'success' as const : 'warning' as const
+            }))
+        ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 10)
+
+        // Alertas
+        const alerts = []
+
+        if (pendingReports > 0) {
+            alerts.push({
+                id: 'reports',
+                type: 'report',
+                title: 'Reportes pendientes',
+                description: `${pendingReports} reportes esperando revisión`,
+                count: pendingReports,
+                href: '/admin/reportes',
+                severity: 'high'
+            })
+        }
+
+        const pendingProducts = await prisma.product.count({
+            where: { status: 'INACTIVE' }
         })
+        if (pendingProducts > 0) {
+            alerts.push({
+                id: 'products',
+                type: 'product',
+                title: 'Productos sin aprobar',
+                description: `${pendingProducts} productos esperando aprobación`,
+                count: pendingProducts,
+                href: '/admin/productos',
+                severity: 'medium'
+            })
+        }
 
-        const productsByCategoryWithNames = productsByCategory.map(item => ({
-            category: categories.find(c => c.id === item.categoryId)?.name || 'Sin categoría',
-            count: item._count
-        }))
-
-        // Estadísticas de órdenes
-        const totalOrders = await prisma.order.count()
-        const recentOrders = await prisma.order.count({
-            where: {
-                createdAt: {
-                    gte: startDate
-                }
-            }
+        const problemOrders = await prisma.order.count({
+            where: { status: 'CANCELLED' }
         })
-
-        const ordersByStatus = await prisma.order.groupBy({
-            by: ['status'],
-            _count: true
-        })
-
-        const ordersStats = await prisma.order.aggregate({
-            _sum: {
-                total: true
-            },
-            _avg: {
-                total: true
-            }
-        })
-
-        const recentOrdersRevenue = await prisma.order.aggregate({
-            where: {
-                createdAt: {
-                    gte: startDate
-                },
-                status: {
-                    in: ['COMPLETED', 'DELIVERED']
-                }
-            },
-            _sum: {
-                total: true
-            }
-        })
-
-        // Estadísticas de subastas
-        const totalAuctions = await prisma.auction.count()
-        const activeAuctions = await prisma.auction.count({
-            where: {
-                status: 'ACTIVE',
-                endDate: {
-                    gte: new Date()
-                }
-            }
-        })
-
-        // Estadísticas de mensajes
-        const totalMessages = await prisma.message.count()
-        const unreadMessages = await prisma.message.count({
-            where: {
-                read: false
-            }
-        })
-
-        // Productos más vendidos (últimos 30 días)
-        const topProducts = await prisma.orderItem.groupBy({
-            by: ['productId'],
-            _sum: {
-                quantity: true
-            },
-            _count: true,
-            orderBy: {
-                _sum: {
-                    quantity: 'desc'
-                }
-            },
-            take: 5
-        })
-
-        const topProductIds = topProducts.map(p => p.productId)
-        const topProductsDetails = await prisma.product.findMany({
-            where: {
-                id: {
-                    in: topProductIds
-                }
-            },
-            select: {
-                id: true,
-                title: true,
-                thumbnail: true,
-                price: true
-            }
-        })
-
-        const topProductsWithDetails = topProducts.map(item => ({
-            product: topProductsDetails.find(p => p.id === item.productId),
-            totalSold: item._sum.quantity,
-            orderCount: item._count
-        }))
-
-        // Ventas por día (últimos 30 días)
-        const salesByDay = await prisma.$queryRaw`
-      SELECT 
-        DATE(createdAt) as date,
-        COUNT(*) as orders,
-        SUM(total) as revenue
-      FROM "Order"
-      WHERE createdAt >= ${startDate}
-      GROUP BY DATE(createdAt)
-      ORDER BY date ASC
-    `
+        if (problemOrders > 0) {
+            alerts.push({
+                id: 'orders',
+                type: 'order',
+                title: 'Órdenes canceladas',
+                description: `${problemOrders} órdenes requieren atención`,
+                count: problemOrders,
+                href: '/admin/ordenes',
+                severity: 'low'
+            })
+        }
 
         return NextResponse.json({
-            users: {
-                total: totalUsers,
-                new: newUsers,
-                byRole: usersByRole
+            stats: {
+                totalUsers,
+                activeProducts,
+                todayOrders,
+                monthRevenue,
+                pendingReports,
+                activeAuctions
             },
-            products: {
-                total: totalProducts,
-                active: activeProducts,
-                byCategory: productsByCategoryWithNames
-            },
-            orders: {
-                total: totalOrders,
-                recent: recentOrders,
-                byStatus: ordersByStatus,
-                totalRevenue: ordersStats._sum.total || 0,
-                averageOrderValue: ordersStats._avg.total || 0,
-                recentRevenue: recentOrdersRevenue._sum.total || 0
-            },
-            auctions: {
-                total: totalAuctions,
-                active: activeAuctions
-            },
-            messages: {
-                total: totalMessages,
-                unread: unreadMessages
-            },
-            topProducts: topProductsWithDetails,
-            salesByDay
+            chartData,
+            activities,
+            alerts
         })
 
     } catch (error) {
-        return handleAdminError(error)
+        console.error('Error in dashboard API:', error)
+        return NextResponse.json(
+            { error: 'Error obteniendo datos del dashboard' },
+            { status: 500 }
+        )
     }
 }
